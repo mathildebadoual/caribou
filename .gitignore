@@ -99,3 +99,9 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# Idea directory
+.idea*
+
+# vim
+*.swp*

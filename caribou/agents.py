@@ -1,12 +1,11 @@
 class Agent:
-    def __init__(self, id, timer):
+    def __init__(self, agent_id):
         self.group_id = None
-        self.id = id
+        self.agent_id = agent_id
         self.power_load = 0
         self.power_gen = 0
         self.accum_power_load = 0  # accumulated power load in kWH
         self.accum_power_gen = 0  # accumulated power generation in kWH
-        self.timer = timer
 
     def get_id(self):
         return self.id
@@ -43,8 +42,8 @@ class Agent:
 
 
 class PV(Agent):
-    def __init__(self, _id, timer):
-        super().__init__(_id, timer)
+    def __init__(self, agent_id):
+        super().__init__(agent_id)
         self.angle = 180
         self.efficiency = 1
 
@@ -66,8 +65,8 @@ class PV(Agent):
 
 
 class EV(Agent):
-    def __init__(self, _id, timer):
-        super().__init__(_id, timer)
+    def __init__(self, agent_id):
+        super().__init__(agent_id)
         self.capacity = 24  # 24kwh by default
         self.soc = 0
         self.status = 0  # 0: parked

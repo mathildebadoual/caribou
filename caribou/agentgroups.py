@@ -15,6 +15,8 @@ class AgentGroup:
         self.agents_list.append(agent)
         if isinstance(agent, agents.EV):
             self.list_eventhandlers.append(eventhandlers.EVevent(agent))
+        if isinstance(agent, agents.PV):
+            self.list_eventhandlers.append(eventhandlers.PVevent(agent))
 
     def remove(self, agent):
         self.agents_list.remove(agent)

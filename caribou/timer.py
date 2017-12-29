@@ -1,4 +1,4 @@
-class Time():
+class Timer():
 
     def __init__(self, start_time_s=0, end_time_s=86400):
         self.start_time_s = start_time_s

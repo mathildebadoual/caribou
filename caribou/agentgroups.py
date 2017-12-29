@@ -40,10 +40,10 @@ class AgentGroup:
         return sum(gens)
 
     def get_accum_net_load_in_kwh(self):  # TODO: replace the list summation with looping over generator
-        return np.sum([agent.get_accum_power_load_in_kwh() for agent in self.agents_list])
+        return sum([agent.get_accum_power_load_in_kwh() for agent in self.agents_list])
 
     def get_accum_net_gen_in_kwh(self):  # TODO: replace the list summation with looping over generator
-        return np.sum([agent.get_accum_power_gen_in_kwh() for agent in self.agents_list])
+        return sum([agent.get_accum_power_gen_in_kwh() for agent in self.agents_list])
 
     def set_local_comtroller(self, local_controller):
         self.local_controller = local_controller

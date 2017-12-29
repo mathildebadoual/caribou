@@ -24,22 +24,17 @@ class Agent:
 
     def set_instant_power_load_in_kw(self, power_load):
         self.power_load = power_load
+        self.accum_power_load +=power_load
 
     def set_instant_power_gen_in_kw(self, power_gen):
         self.power_gen = power_gen
+        self.accum_power_gen += power_gen
 
     def get_accum_power_load_in_kwh(self):
-        return self.accum_power_load*self.timer.get_time(type='h')
+        return self.accum_power_load
 
     def get_accum_power_gen_in_kwh(self):
-        return self.accum_power_gen*self.timer.get_time(type='h')
-
-    def update_accum_power_load(self, delta_power_load):
-        self.accum_power_load += delta_power_load
-
-    def update_accum_power_gen(self, delta_power_gen):
-        self.accum_power_gen += delta_power_gen
-
+        return self.accum_power_gen
 
 class PV(Agent):
     def __init__(self, agent_id):

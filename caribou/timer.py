@@ -8,24 +8,20 @@ class Timer():
     def set_next_time_step(self, time_delta_s=3600):
         self.time_s += time_delta_s
 
-    def get_time(self, type='s'):
+    def get_time(self, type_time='s'):
 
-        if type == 's':
+        if type_time == 's':
             return self.time_s
 
         m = self.time_s/60
-        if type == 'm':
+        if type_time == 'm':
             return m
 
-        h = self.time_s/60
-        if type == 'h':
+        h = self.time_s/3600
+        if type_time == 'h':
             return h
 
         m, s = divmod(self.time_s, 60)
         h, m = divmod(m, 60)
-        if type == None:
+        if type_time is None:
             return h, m, s
-
-
-
-

@@ -7,17 +7,11 @@ class Controller:
 
 class LocalController(Controller):
 
-    def __init__(self, agent_group, global_controller, list_event_handlers):
+    def __init__(self, agentgroup, global_controller):
         super().__init__()
-        self.agentgroup = agent_group
-        self.global_controller = global_controller
-        self.timer = global_controller.get_timer()
-        # self.EV_charging_event = eventhandlers.EVCharging()
-        # self.EV_discharging_event = eventhandlers.EVDischarging()
-        # self.EV_driving_event = eventhandlers.EVDriving()
-        # self.PV_generating_event = eventhandlers.PVGenerating()
-
-
+        self.agentgroup = agentgroup
+        self.globalcontroller = globalcontroller
+        self.timer = globalcontroller.get_timer()
 
 class GlobalController(Controller):
 

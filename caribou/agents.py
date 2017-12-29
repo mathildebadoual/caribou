@@ -82,11 +82,11 @@ class EV(Agent):
     def set_status(self, status):
         if status is 'Parked':
             self.status = 0
-        if status is 'Driving':
+        elif status is 'Driving':
             self.status = 1
-        if status is 'Charging':
+        elif status is 'Charging':
             self.status = 2
-        if status is 'Discharging':
+        elif status is 'Discharging':
             self.status = 3
         else:
             print('Status is : Parked, Charging, Discharging or Driving')

@@ -22,7 +22,7 @@ class TestContruction(unittest.TestCase):
         PV_agent = agents.PV(agent_id=1)
         self.house.add(EV_agent)
         self.house.add(PV_agent)
-        self.assertIsInstance(self.house.list_eventhandlers[0], eventhandlers.EventHandler)
+        self.assertIsInstance(self.house.get_list_eventhandlers()[0], eventhandlers.EventHandler)
 
     def test_get_instant_power_load_in_kw(self):
         for i in range(10):

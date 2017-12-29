@@ -1,4 +1,3 @@
-import caribou.controllers as controllers
 import caribou.agents as agents
 import caribou.eventhandlers as eventhandlers
 
@@ -11,7 +10,6 @@ class AgentGroup:
         self.list_eventhandlers = []
 
     def add(self, agent):
-        agent.set_group_id(self.group_id)
         self.agents_list.append(agent)
         if isinstance(agent, agents.EV):
             self.list_eventhandlers.append(eventhandlers.EVevent(agent))
@@ -48,6 +46,8 @@ class AgentGroup:
     def set_local_comtroller(self, local_controller):
         self.local_controller = local_controller
 
+    def get_list_eventhandlers(self):
+        return self.list_eventhandlers
 
 
 

@@ -1,0 +1,16 @@
+nguage: python
+python:
+    - "3.3"
+    - "3.4"
+    - "3.5"
+    - "3.5-dev"
+    - "3.6"
+    - "3.6-dev"
+    - "3.7-dev"
+    - "nightly"
+
+# command to install dependencies
+install:
+   - pip install -r requirements.txt
+script:
+   - python -m unittest discover . "*_test.py"

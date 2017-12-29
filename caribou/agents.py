@@ -80,14 +80,9 @@ class EV(Agent):
         return self.soc
 
     def set_status(self, status):
-        if status is 'Parked':
-            self.status = 0
-        elif status is 'Driving':
-            self.status = 1
-        elif status is 'Charging':
-            self.status = 2
-        elif status is 'Discharging':
-            self.status = 3
+        list_status = ['Parked', 'Driving', 'Charging', 'Discharging']
+        if status in list_status:
+            self.status =  list_status.index(status)
         else:
             print('Status is : Parked, Charging, Discharging or Driving')
 

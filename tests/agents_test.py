@@ -25,11 +25,15 @@ class TestContructionAgent(unittest.TestCase):
 
 class TestConstructionEV(unittest.TestCase):
     def setUp(self):
-        agent_EV = agents.EV(0)
+        self.agent_EV = agents.EV(0)
+
+    def test_get_status(self):
+        self.agent_EV.set_status('Charging')
+        self.assertEqual(self.agent_EV.get_status(), 2)
 
 class TestConstructionPV(unittest.TestCase):
     def setUp(self):
-        agent_PV = agents.PV(0)
+        self.agent_PV = agents.PV(0)
 
 if __name__ == '__main__':
     unittest.main()

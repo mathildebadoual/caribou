@@ -15,14 +15,14 @@ class Agent:
     def get_instant_power_load_in_kw(self):
         return self.power_load
 
-    def set_instant_power_load_in_kw(self):
-        self.power_load = self.power_load
+    def set_instant_power_load_in_kw(self, power_load):
+        self.power_load = power_load
 
-    def update_instant_power_load_in_kw(self):
+    def update_accum_power_load_in_kwh(self):
         self.accum_power_load += self.power_load
 
-    def set_instant_power_gen_in_kw(self):
-        self.power_gen = self.power_gen
+    def set_instant_power_gen_in_kw(self, power_gen):
+        self.power_gen = power_gen
 
     def update_accum_power_gen_in_kw(self):
         self.accum_power_gen += self.power_gen

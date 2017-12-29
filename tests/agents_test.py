@@ -20,6 +20,7 @@ class TestContructionAgent(unittest.TestCase):
     def test_get_accum_power_load_in_kwh(self):
         for i in range(10):
             self.agent.set_instant_power_load_in_kw(1)
+            self.agent.update_accum_power_load_in_kwh()
         self.assertEqual(self.agent.get_accum_power_load_in_kwh(), 10)
 
 

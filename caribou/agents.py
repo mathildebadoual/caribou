@@ -1,6 +1,5 @@
 class Agent:
     def __init__(self, agent_id):
-        self.group_id = None
         self.agent_id = agent_id
         self.power_load = 0
         self.power_gen = 0
@@ -8,13 +7,7 @@ class Agent:
         self.accum_power_gen = 0  # accumulated power generation in kWH
 
     def get_id(self):
-        return self.id
-
-    def set_group_id(self, group_id):
-        self.group_id = group_id
-
-    def get_group_id(self):
-        return self.group_id
+        return self.agent_id
 
     def get_instant_power_gen_in_kw(self):
         return self.power_gen
@@ -24,7 +17,7 @@ class Agent:
 
     def set_instant_power_load_in_kw(self, power_load):
         self.power_load = power_load
-        self.accum_power_load +=power_load
+        self.accum_power_load += power_load
 
     def set_instant_power_gen_in_kw(self, power_gen):
         self.power_gen = power_gen
@@ -62,12 +55,9 @@ class PV(Agent):
 class EV(Agent):
     def __init__(self, agent_id):
         super().__init__(agent_id)
-        self.capacity = 24  # 24kwh by default
+        self.capacity_kwh = 24
         self.soc = 0
-        self.status = 0  # 0: parked
-                         # 1: driving
-                         # 2: charging
-                         # 3: discharging
+        self.status = 0
 
     def set_capacity(self, capacity):
         """
@@ -77,8 +67,8 @@ class EV(Agent):
         """
         self.capacity = capacity
 
-    def get_capacity(self):
-        return self.capacity
+    def get_capacity_kwh(self):
+        return self.capacity_kwh
 
     def set_soc(self, soc):
         self.soc = soc
@@ -90,13 +80,18 @@ class EV(Agent):
         return self.soc
 
     def set_status(self, status):
-        if status in ('Charging', 'Discharging', 'Driving'):
-            self.status = status
+        if status is 'Parked':
+            self.status = 0
+        if status is 'Driving':
+            self.status = 1
+        if status is 'Charging':
+            self.status = 2
+        if status is 'Discharging':
+            self.status = 3
         else:
-            print('Status is : Charging, Discharging or Driving')
+            print('Status is : Parked, Charging, Discharging or Driving')
 
     def get_status(self):
         return self.status
 
 # TODO: ADD ENERGY COMPONENTS (e.g., ESS, HVAC)
-

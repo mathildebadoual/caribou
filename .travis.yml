@@ -19,4 +19,4 @@ script:
 install:
    - pip install coverage
 script:
-   - coverage run discover . "*_test.py"
+   - coverage run . "*_test.py"

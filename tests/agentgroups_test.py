@@ -38,7 +38,9 @@ class TestContruction(unittest.TestCase):
             self.house.add(agents.PV(2*i))
         for agent in self.house.get_agents():
             agent.set_instant_power_load_in_kw(1)
+            agent.update_accum_power_load_in_kwh()
             agent.set_instant_power_load_in_kw(1)
+            agent.update_accum_power_load_in_kwh()
         self.assertEqual(self.house.get_accum_net_load_in_kwh(), 40)
 
 

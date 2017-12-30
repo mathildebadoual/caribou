@@ -16,4 +16,7 @@ script:
    - python -m unittest discover . "*_test.py"
 
 # command run code coverage
-codecov
+install:
+   - pip install coverage
+script:
+   - coverage run tests.py

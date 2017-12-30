@@ -14,3 +14,6 @@ install:
    - pip install -r requirements.txt
 script:
    - python -m unittest discover . "*_test.py"
+
+# command run code coverage
+codecov

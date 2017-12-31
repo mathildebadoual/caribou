@@ -5,6 +5,9 @@ class Timer():
         self.end_time_s = end_time_s
         self.time_s = start_time_s
 
+    def get_end_time_s(self):
+        return self.end_time_s
+
     def set_next_time_step(self, time_delta_s=3600):
         self.time_s += time_delta_s
 

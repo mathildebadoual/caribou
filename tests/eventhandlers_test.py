@@ -36,18 +36,18 @@ class TestRunAgentPV(unittest.TestCase):
         self.irradiance_data = [0.1, 0.2, 0.3]
         self.event_PV.set_irradiance_data(self.irradiance_data)
 
-    def test_get_instant_power_gen_in_kw(self):
+    def test_get_instant_power_gen(self):
         self.agent_PV.set_angle(90)
         self.agent_PV.set_efficiency(0.5)
         time_step = 0
-        self.assertEqual(self.event_PV.get_instant_power_gen_in_kw(time_step), 90*0.5*self.irradiance_data[time_step])
+        self.assertEqual(self.event_PV.get_instant_power_gen(time_step), 90*0.5*self.irradiance_data[time_step])
 
-    def test_run_next_time(self):
+    def test_run_step(self):
         self.agent_PV.set_angle(90)
         self.agent_PV.set_efficiency(0.5)
         for i in range(4):
-            self.event_PV.run_next_step()
-        self.assertEqual(self.agent_PV.get_accum_power_gen_in_kwh(), sum([90*0.5*ir for ir in self.irradiance_data]))
+            self.event_PV.run_step()
+        self.assertEqual(self.agent_PV.get_accum_power_gen(), sum([90*0.5*ir for ir in self.irradiance_data]))
 
 if __name__ == '__main__':
     unittest.main()

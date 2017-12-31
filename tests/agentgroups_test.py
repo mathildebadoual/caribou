@@ -24,24 +24,24 @@ class TestContruction(unittest.TestCase):
         self.house.add(PV_agent)
         self.assertIsInstance(self.house.get_list_eventhandlers()[0], eventhandlers.EventHandler)
 
-    def test_get_instant_power_load_in_kw(self):
+    def test_get_instant_power_load(self):
         for i in range(10):
             self.house.add(agents.EV(i))
             self.house.add(agents.PV(2*i))
         for i, EV_agent in enumerate(self.house.get_agents(agents.EV)):
-            EV_agent.set_instant_power_load_in_kw(3)
-        self.assertEqual(self.house.get_instant_net_load_in_kw(), 30)
+            EV_agent.set_instant_power_load(3)
+        self.assertEqual(self.house.get_instant_net_load(), 30)
 
-    def test_get_acum_net_load_in_kwh(self):
+    def test_get_acum_net_load(self):
         for i in range(10):
             self.house.add(agents.EV(i))
             self.house.add(agents.PV(2*i))
         for agent in self.house.get_agents():
-            agent.set_instant_power_load_in_kw(1)
-            agent.update_accum_power_load_in_kwh()
-            agent.set_instant_power_load_in_kw(1)
-            agent.update_accum_power_load_in_kwh()
-        self.assertEqual(self.house.get_accum_net_load_in_kwh(), 40)
+            agent.set_instant_power_load(1)
+            agent.update_accum_power_load()
+            agent.set_instant_power_load(1)
+            agent.update_accum_power_load()
+        self.assertEqual(self.house.get_accum_net_load(), 40)
 
 
 

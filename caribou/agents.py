@@ -1,3 +1,5 @@
+#TODO(Mathilde): remove '_in_j'
+
 class Agent:
     def __init__(self, agent_id):
         self.agent_id = agent_id
@@ -9,28 +11,28 @@ class Agent:
     def get_id(self):
         return self.agent_id
 
-    def get_instant_power_gen_in_kw(self):
+    def get_instant_power_gen(self):
         return self.power_gen
 
-    def get_instant_power_load_in_kw(self):
+    def get_instant_power_load(self):
         return self.power_load
 
-    def set_instant_power_load_in_kw(self, power_load):
+    def set_instant_power_load(self, power_load):
         self.power_load = power_load
 
-    def update_accum_power_load_in_kwh(self):
+    def update_accum_power_load(self):
         self.accum_power_load += self.power_load
 
-    def set_instant_power_gen_in_kw(self, power_gen):
+    def set_instant_power_gen(self, power_gen):
         self.power_gen = power_gen
 
-    def update_accum_power_gen_in_kw(self):
+    def update_accum_power_gen(self):
         self.accum_power_gen += self.power_gen
 
-    def get_accum_power_load_in_kwh(self):
+    def get_accum_power_load(self):
         return self.accum_power_load
 
-    def get_accum_power_gen_in_kwh(self):
+    def get_accum_power_gen(self):
         return self.accum_power_gen
 
 class PV(Agent):
@@ -51,7 +53,7 @@ class PV(Agent):
     def get_efficiency(self):
         return self.efficiency
 
-    def compute_instant_power_gen_in_kw(self, irradiance):
+    def compute_instant_power_gen(self, irradiance):
         self.power_gen = self.efficiency*self.angle*irradiance
 
 

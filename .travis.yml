@@ -12,8 +12,9 @@ python:
 # command to install dependencies
 install:
    - pip install -r requirements.txt
+   
 script:
-   - python -m unittest discover . "*_test.py"
+   - nose --with-coverage 
 
 after_success:
-  - codecov
+   - codecov

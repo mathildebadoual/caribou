@@ -15,5 +15,5 @@ install:
 script:
    - python -m unittest discover . "*_test.py"
 
-# command run code coverage
-codecov
+after_success:
+  - codecov

@@ -1,6 +1,4 @@
-cython 
 codecov
 coverage
 nose
 numpy
-quadprog

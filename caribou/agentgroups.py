@@ -37,11 +37,11 @@ class AgentGroup:
         gens = (agent.get_instant_power_gen() for agent in self.agents_list)
         return sum(gens)
 
-    def get_accum_net_load_in_j(self):  # TODO: replace the list summation with looping over generator
-        return sum([agent.get_accum_power_load_in_j() for agent in self.agents_list])
+    def get_accum_net_load(self):  # TODO: replace the list summation with looping over generator
+        return sum([agent.get_accum_power_load() for agent in self.agents_list])
 
-    def get_accum_net_gen_in_j(self):  # TODO: replace the list summation with looping over generator
-        return sum([agent.get_accum_power_gen_in_j() for agent in self.agents_list])
+    def get_accum_net_gen(self):  # TODO: replace the list summation with looping over generator
+        return sum([agent.get_accum_power_gen() for agent in self.agents_list])
 
     def set_local_comtroller(self, local_controller):
         self.local_controller = local_controller

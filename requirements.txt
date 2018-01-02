@@ -1,4 +1,4 @@
-Cython 
+Cython.Build
 codecov
 coverage
 nose

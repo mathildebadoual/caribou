@@ -46,7 +46,7 @@ class TestRunAgentPV(unittest.TestCase):
         self.agent_PV.set_angle(90)
         self.agent_PV.set_efficiency(0.5)
         for i in range(4):
-            self.event_PV.run_step()
+            self.event_PV.run_next_step()
         self.assertEqual(self.agent_PV.get_accum_power_gen(), sum([90*0.5*ir for ir in self.irradiance_data]))
 
 if __name__ == '__main__':

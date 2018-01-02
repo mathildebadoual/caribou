@@ -54,10 +54,13 @@ class TravaccaEtAl2017GlobalController(GlobalController):
         self.b = np.genfromtxt('data/travacca_et_al_2017/b.csv', delimiter=',')
         self.data_main = np.genfromtxt(
             'data/travacca_et_al_2017/main.csv', delimiter=',')
-        # TODO(mathilde): compute start/stop values from data
-        # start = start_day*4*24+1
-        # stop = start_day*4*24+time_horizon*4;
-        # self.dam_price = data_main[start:4:stop, 11]/self.scale_price
+        self.dam_price = self.select_dam_price(start_day, time_horizon)
+
+    def select_dam_price(self, start_day, time_horizon):
+        start = start_day*4*24+1
+        stop = start_day*4*24+time_horizon*4
+        scale_price = 1000
+        return self.data_main[start:stop:4, 11]/scale_price
 
     def global_solve(self):
         pass

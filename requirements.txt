@@ -1,6 +1,6 @@
+Cython.Build
 codecov
 coverage
-Cython 
 nose
 numpy
 quadprog

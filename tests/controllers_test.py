@@ -26,6 +26,7 @@ class TestContrucitonTravaccaEtAl2017GlobalController(unittest.TestCase):
     def test_data_loading(self):
         self.assertEqual(self.globalcontroller.b.shape, (24, 96))
         self.assertEqual(self.globalcontroller.data_main.shape, (37244, 17))
+        self.assertEqual(self.globalcontroller.dam_price.shape, (24,))
 
 
 if __name__ == '__main__':

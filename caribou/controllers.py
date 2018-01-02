@@ -1,4 +1,3 @@
-from quadprog import solve_qp
 import numpy as np
 """Controllers."""
 
@@ -28,8 +27,6 @@ class TravaccaEtAl2017LocalController(LocalController):
 
     def local_solve(self, globalcontroller_variables):
         mu, nu, fq = globalcontroller_variables
-        x_result, f_result = solve_qp()
-        return x_result, f_result
 
 
 class GlobalController(Controller):

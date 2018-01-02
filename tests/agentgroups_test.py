@@ -4,12 +4,12 @@ import caribou.eventhandlers as eventhandlers
 import unittest
 
 
-class TestContruction(unittest.TestCase):
+class TestContructionAgentGroup(unittest.TestCase):
 
     def setUp(self):
         self.house = agentgroups.ResidentialBuilding(group_id=0)
 
-    def test_house_setget_agents(self):
+    def test_get_agents(self):
         EV_agent = agents.EV(agent_id=0)
         PV_agent = agents.PV(agent_id=1)
         self.house.add(EV_agent)
@@ -17,7 +17,7 @@ class TestContruction(unittest.TestCase):
         list_agents_house = [EV_agent, PV_agent]
         self.assertEqual(self.house.get_agents(), list_agents_house)
 
-    def test_house_list_eventhandlers(self):
+    def test_list_eventhandlers(self):
         EV_agent = agents.EV(agent_id=0)
         PV_agent = agents.PV(agent_id=1)
         self.house.add(EV_agent)

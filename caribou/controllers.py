@@ -47,7 +47,7 @@ class TravaccaEtAl2017LocalController(LocalController):
 
 # TODO(Mathilde): Create a class load or put the load functions outside of classes
 
-    def load_b_matrix(self):
+    def load_b(self):
         return np.genfromtxt('data/travacca_et_al_2017/b.csv', delimiter=',')
 
     def load_e_max(self):
@@ -89,7 +89,7 @@ class TravaccaEtAl2017LocalController(LocalController):
 
     def generate_random_load(self):
         data_dam_demand = self.globalcontroller.load_dam_demand()
-        return data_dam_demand + data_dam_demand * (rand(slef.globalcontroller.time_horizon * 24) - 0.5)
+        return data_dam_demand + data_dam_demand * (rand(self.globalcontroller.time_horizon * 24) - 0.5)
 
 
 class GlobalController(Controller):

@@ -23,8 +23,24 @@ class TestLoadDataTravaccaEtAl2017LocalController(unittest.TestCase):
     def test_generate_random_pv_gen(self):
         self.assertEqual(self.localcontroller.generate_random_pv_gen().shape, (24,))
 
-    def test_load_e_max(self):
+    def test_generate_random_load(self):
+        self.assertEqual(self.localcontroller.generate_random_load().shape, (24,))
+
+    def test_load_ev(self):
         self.assertEqual(self.localcontroller.load_e_max().shape, (24,))
+        self.assertEqual(self.localcontroller.load_e_min().shape, (24,))
+        self.assertEqual(self.localcontroller.load_ev_max().shape, (24,))
+        self.assertEqual(self.localcontroller.load_e_min().shape, (24,))
+
+    def test_load_matrix_for_optim(self):
+        self.assertEqual(self.localcontroller.load_b().shape, (24, 96))
+        self.assertEqual(self.localcontroller.load_aeq().shape, (48,))
+        self.assertEqual(self.localcontroller.load_aq().shape, (72, 48))
+        self.assertEqual(self.localcontroller.load_beq().shape, ())
+        self.assertEqual(self.localcontroller.load_c().shape, (96,))
+        self.assertEqual(self.localcontroller.load_hq().shape, (48, 48))
+        self.assertEqual(self.localcontroller.load_lbq().shape, (48, 100))
+        self.assertEqual(self.localcontroller.load_ubq().shape, (48, 100))
 
 
 class TestConstructionGlobalController(unittest.TestCase):

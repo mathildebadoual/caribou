@@ -1,3 +1,5 @@
+dist: trusty
+cache: pip
 language: python
 python:
     - "3.3"
@@ -11,10 +13,11 @@ python:
 
 # command to install dependencies
 install:
-   - pip install -r requirements.txt
-   
+    - pip install --upgrade pip setuptools wheel
+    - pip install Cython
+    - pip install -r requirements.txt
 script:
-   - nosetests --with-coverage 
+    - nosetests --with-coverage
 
 after_success:
-   - codecov
+    - codecov

@@ -1,5 +1,7 @@
 codecov
 coverage
+cython
 nose
 numpy
+quadprog
 scipy

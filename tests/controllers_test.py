@@ -9,9 +9,21 @@ import unittest
 class TestConstructionLocalController(unittest.TestCase):
     def setUp(self):
         self.house = agentgroups.ResidentialBuilding(0)
-        self.globalcontroller = controllers.GlobalController(self.timer)
-        self.house_controller = controllers.LocalController(
+        self.globalcontroller = controllers.GlobalController()
+        self.housecontroller = controllers.LocalController(
             self.house, self.globalcontroller)
+
+
+class TestLoadDataTravaccaEtAl2017LocalController(unittest.TestCase):
+    def setUp(self):
+        self.house = agentgroups.ResidentialBuilding(0)
+        self.globalcontroller = controllers.TravaccaEtAl2017GlobalController()
+        self.localcontroller = controllers.TravaccaEtAl2017LocalController(self.house, self.globalcontroller)
+
+    def test_generate_random_pv_gen(self):
+        self.assertEqual(self.localcontroller.generate_random_pv_gen().shape, (24,))
+
+
 
 
 class TestConstructionGlobalController(unittest.TestCase):

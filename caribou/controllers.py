@@ -67,8 +67,10 @@ class TravaccaEtAl2017GlobalController(GlobalController):
             'data/travacca_et_al_2017/main.csv', delimiter=',')
 
     def load_pv_gen(self):
+        start = self.start_day * 4 * 24
+        stop = self.start_day * 4 * 24 + self.time_horizon * 24 * 4 - 1
         scale_pv = 10
-        return self.data_main[start:stop:4, 17] / scale_pv
+        return self.data_main[start:stop:4, 16] / scale_pv
 
     def load_b_matrix(self):
         return np.genfromtxt('data/travacca_et_al_2017/b.csv', delimiter=',')

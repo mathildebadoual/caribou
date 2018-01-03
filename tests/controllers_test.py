@@ -36,9 +36,6 @@ class TestLoadDataTravaccaEtAl2017GlobalController(unittest.TestCase):
     def setUp(self):
         self.globalcontroller = controllers.TravaccaEtAl2017GlobalController()
 
-    def test_load_b_matrix(self):
-        self.assertEqual(self.globalcontroller.load_b_matrix().shape, (24, 96))
-
     def test_load_dam_price(self):
         self.assertEqual(self.globalcontroller.load_dam_price().shape, (24,))
 

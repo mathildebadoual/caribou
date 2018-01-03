@@ -3,6 +3,7 @@ import scipy
 from scipy.linalg import sqrtm
 from numpy.random import multivariate_normal
 from numpy.random import rand
+import constants as c
 """Controllers."""
 
 
@@ -37,7 +38,14 @@ class TravaccaEtAl2017LocalController(LocalController):
         self.id_generator += 1
 
     def local_solve(self, globalcontroller_variables):
-        mu, nu, fq = globalcontroller_variables
+        mu, nu = globalcontroller_variables
+        b = self.load_b_matrix()
+        dam_predict_price = self.globalcontroller.predict_dam_price()
+        fq = np.array(dam_predict_price - nu, np.dot(b, mu))
+        aeq = 0
+
+    def load_b_matrix(self):
+        return np.genfromtxt('data/travacca_et_al_2017/b.csv', delimiter=',')
 
     def load_e_max(self):
         return np.genfromtxt('data/travacca_et_al_2017/dam_e_max.csv', delimiter=',')[self.identity]
@@ -100,9 +108,6 @@ class TravaccaEtAl2017GlobalController(GlobalController):
     def load_ev_min_agg(self):
         return np.genfromtxt('data/travacca_et_al_2017/dam_ev_min_agg.csv', delimiter=',')
 
-    def load_b_matrix(self):
-        return np.genfromtxt('data/travacca_et_al_2017/b.csv', delimiter=',')
-
     def load_dam_price(self):
         start = self.start_day * 4 * 24
         stop = self.start_day * 4 * 24 + self.time_horizon * 24 * 4 - 1
@@ -127,7 +132,7 @@ class TravaccaEtAl2017GlobalController(GlobalController):
         return dam_predict_price
 
 
-    def global_solve(self, num_iter=50):
+    def global_solve(self, num_iter=50, gamma=0.00001):
         mu, nu, ev_sol, g_sol, local_optimal_cost = self.initialize_gradient_accent(
             self)
         for _ in range(num_iter):
@@ -140,9 +145,6 @@ class TravaccaEtAl2017GlobalController(GlobalController):
             (size, 1))
 
     def next_step_gradient_accent(self, mu, nu):
-        b = self.load_b_matrix()
-        dam_predict_price = self.predict_dam_price()
-        fq = np.array(dam_predict_price - nu, np.dot(b, mu))
-        globalcontroller_variables = (mu, nu, fq)
+        globalcontroller_variables = (mu, nu)
         for localcontroller in self.list_localcontrollers:
-            localcontroller.run_local_optim(globalcontroller_variables)
+            x_result, f_result = localcontroller.run_local_optim(globalcontroller_variables)

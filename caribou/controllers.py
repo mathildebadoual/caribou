@@ -1,10 +1,11 @@
-import numpy as np
-import scipy
-from scipy.linalg import sqrtm
+"""Controllers."""
+
 from numpy.random import multivariate_normal
 from numpy.random import rand
-import constants as c
-"""Controllers."""
+from scipy.linalg import sqrtm
+import numpy as np
+import scipy
+import quadprog
 
 
 class Controller:
@@ -44,6 +45,8 @@ class TravaccaEtAl2017LocalController(LocalController):
         fq = np.array(dam_predict_price - nu, np.dot(b, mu))
         aeq = 0
 
+# TODO(Mathilde): Create a class load or put the load functions outside of classes
+
     def load_b_matrix(self):
         return np.genfromtxt('data/travacca_et_al_2017/b.csv', delimiter=',')
 
@@ -59,9 +62,34 @@ class TravaccaEtAl2017LocalController(LocalController):
     def load_ev_min(self):
         return np.genfromtxt('data/travacca_et_al_2017/dam_ev_min.csv', delimiter=',')[self.identity]
 
+    def load_aeq(self):
+        return np.genfromtxt('data/travacca_et_al_2017/aeq.csv', delimiter=',')
+
+    def load_aq(self):
+        return np.genfromtxt('data/travacca_et_al_2017/aq.csv', delimiter=',')
+
+    def load_beq(self):
+        return np.genfromtxt('data/travacca_et_al_2017/beq.csv', delimiter=',')
+
+    def load_c(self):
+        return np.genfromtxt('data/travacca_et_al_2017/c.csv', delimiter=',')
+
+    def load_hq(self):
+        return np.genfromtxt('data/travacca_et_al_2017/hq.csv', delimiter=',')
+
+    def load_lbq(self):
+        return np.genfromtxt('data/travacca_et_al_2017/lbq.csv', delimiter=',')
+
+    def load_ubq(self):
+        return np.genfromtxt('data/travacca_et_al_2017/ubq.csv', delimiter=',')
+
     def generate_random_pv_gen(self):
-        data_pv = self.globalcontroller.load_pv_gen()
-        return data_pv + data_pv * (rand(self.globalcontroller.time_horizon * 24)-0.5)
+        data_pv_gen = self.globalcontroller.load_pv_gen()
+        return data_pv_gen + data_pv_gen * (rand(self.globalcontroller.time_horizon * 24) - 0.5)
+
+    def generate_random_load(self):
+        data_dam_demand = self.globalcontroller.load_dam_demand()
+        return data_dam_demand + data_dam_demand * (rand(slef.globalcontroller.time_horizon * 24) - 0.5)
 
 
 class GlobalController(Controller):
@@ -113,6 +141,12 @@ class TravaccaEtAl2017GlobalController(GlobalController):
         stop = self.start_day * 4 * 24 + self.time_horizon * 24 * 4 - 1
         scale_price = 1000
         return self.data_main[start:stop:4, 11] / scale_price
+
+    def load_dam_demand(self):
+        start = self.start_day * 4 * 24
+        stop = self.start_day * 4 * 24 + self.time_horizon * 24 * 4 - 1
+        scale_load = 10000
+        return self.data_main[start:stop:4, 10] / scale_load
 
     def load_cov_dam_price(self):
         return np.genfromtxt(

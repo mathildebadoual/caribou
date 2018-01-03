@@ -84,6 +84,12 @@ class TestLoadDataTravaccaEtAl2017GlobalController(unittest.TestCase):
 class TestRunGradientAscentTravaccaEtAl2017GlobaController(unittest.TestCase):
     def setUp(self):
         self.globalcontroller = controllers.TravaccaEtAl2017GlobalController()
+        self.house = agentgroups.ResidentialBuilding(0)
+        self.localcontroller = controllers.TravaccaEtAl2017LocalController(self.house, self.globalcontroller)
+        self.globalcontroller.set_list_loclcontroller([self.localcontroller])
+
+    def test_initialize_gradient_ascent(self):
+        self.assertEqual(self.globalcontroller.initialize_gradient_ascent(10)), (np.zeros((96, 1)), np.zeros((24, 1)), np.zeros((24, 1)), np.zeros((24, 1)), np.zeros((1, 1)), np.zeros((10, 1))))
 
     def test_compute_total_cost(self):
         mu = np.zeros((96, 1))
@@ -91,6 +97,14 @@ class TestRunGradientAscentTravaccaEtAl2017GlobaController(unittest.TestCase):
         alpha = 1
         local_optimum_cost = np.ones((50, 1))
         self.assertEqual(self.globalcontroller.compute_total_cost(mu, nu, alpha, local_optimum_cost).shape, (1, 1))
+
+    def test_update_mu(self):
+        pass
+
+
+    def test_update_nu(self):
+        pass
+
 
 
 if __name__ == '__main__':

@@ -23,7 +23,8 @@ class TestLoadDataTravaccaEtAl2017LocalController(unittest.TestCase):
     def test_generate_random_pv_gen(self):
         self.assertEqual(self.localcontroller.generate_random_pv_gen().shape, (24,))
 
-
+    def test_load_e_max(self):
+        self.assertEqual(self.localcontroller.load_e_max().shape, (24,))
 
 
 class TestConstructionGlobalController(unittest.TestCase):

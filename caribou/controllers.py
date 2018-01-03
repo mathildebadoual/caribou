@@ -12,6 +12,8 @@ class Controller:
 
 
 class LocalController(Controller):
+    id_generator = 0
+
     def __init__(self, agentgroup, globalcontroller):
         super().__init__()
         self.agentgroup = agentgroup
@@ -31,9 +33,23 @@ class LocalController(Controller):
 class TravaccaEtAl2017LocalController(LocalController):
     def __init__(self, agentgroup, globalcontroller):
         super().__init__(agentgroup, globalcontroller)
+        self.identity = self.id_generator
+        self.id_generator += 1
 
     def local_solve(self, globalcontroller_variables):
         mu, nu, fq = globalcontroller_variables
+
+    def load_e_max(self):
+        return np.genfromtxt('data/travacca_et_al_2017/dam_e_max.csv', delimiter=',')[self.identity]
+
+    def load_e_min(self):
+        return np.genfromtxt('data/travacca_et_al_2017/dam_e_min.csv', delimiter=',')[self.identity]
+
+    def load_ev_max(self):
+        return np.genfromtxt('data/travacca_et_al_2017/dam_ev_max.csv', delimiter=',')[self.identity]
+
+    def load_ev_min(self):
+        return np.genfromtxt('data/travacca_et_al_2017/dam_ev_min.csv', delimiter=',')[self.identity]
 
     def generate_random_pv_gen(self):
         data_pv = self.globalcontroller.load_pv_gen()
@@ -72,6 +88,18 @@ class TravaccaEtAl2017GlobalController(GlobalController):
         scale_pv = 10
         return self.data_main[start:stop:4, 16] / scale_pv
 
+    def load_e_max_agg(self):
+        return np.genfromtxt('data/travacca_et_al_2017/dam_e_max_agg.csv', delimiter=',')
+
+    def load_e_min_agg(self):
+        return np.genfromtxt('data/travacca_et_al_2017/dam_e_min_agg.csv', delimiter=',')
+
+    def load_ev_max_agg(self):
+        return np.genfromtxt('data/travacca_et_al_2017/dam_ev_max_agg.csv', delimiter=',')
+
+    def load_ev_min_agg(self):
+        return np.genfromtxt('data/travacca_et_al_2017/dam_ev_min_agg.csv', delimiter=',')
+
     def load_b_matrix(self):
         return np.genfromtxt('data/travacca_et_al_2017/b.csv', delimiter=',')
 
@@ -97,6 +125,7 @@ class TravaccaEtAl2017GlobalController(GlobalController):
                 day - 1):24 * (day + 1)], (24, 1))
             dam_predict_price[24 * day:24 * (day + 1), :] = matrix_dam_price + product_matrix
         return dam_predict_price
+
 
     def global_solve(self, num_iter=50):
         mu, nu, ev_sol, g_sol, local_optimal_cost = self.initialize_gradient_accent(

@@ -1,4 +1,6 @@
 import numpy as np
+from scipy.linalg import sqrtm
+from numpy.random import multivariate_normal
 """Controllers."""
 
 
@@ -48,29 +50,55 @@ class GlobalController(Controller):
 
 
 class TravaccaEtAl2017GlobalController(GlobalController):
-    def __init__(self, num_iter=50, start_day=2, time_horizon=24):
+    def __init__(self, start_day=2, time_horizon=1):  # time_horizon in days
         super().__init__()
-        self.num_iter = num_iter
-        self.b = np.genfromtxt('data/travacca_et_al_2017/b.csv', delimiter=',')
-        self.data_main = np.genfromtxt(
+        self.start_day = start_day
+        self.time_horizon = time_horizon
+
+    def load_b_matrix(self):
+        return np.genfromtxt('data/travacca_et_al_2017/b.csv', delimiter=',')
+
+    def load_dam_price(self):
+        data_main = np.genfromtxt(
             'data/travacca_et_al_2017/main.csv', delimiter=',')
-        self.dam_price = self.select_dam_price(start_day, time_horizon)
-
-    def select_dam_price(self, start_day, time_horizon):
-        start = start_day*4*24+1
-        stop = start_day*4*24+time_horizon*4
+        start = self.start_day * 4 * 24
+        stop = self.start_day * 4 * 24 + self.time_horizon * 24 * 4 - 1
         scale_price = 1000
-        return self.data_main[start:stop:4, 11]/scale_price
+        return data_main[start:stop:4, 11] / scale_price
 
-    def global_solve(self):
-        pass
-        # mu = 0
-        # nu = 0
-        # ev_sol = np.zeros((24, len(self.list_localcontrollers)))
-        # g_sol = np.zeros((24, len(self.list_localcontrollers)))
-        # local_optimal_cost = np.zeros((len(self.list_localcontrollers), 1))
-        # for _ in range(self.num_iter):
-        #    fq = np.array(c.dam_predict - nu, np.dot(self.b, mu))
-        #    globalcontroller_variables = (mu, nu, fq)
-        #    for localcontroller in self.list_localcontrollers:
-        #        localcontroller.run_local_optim(globalcontroller_variables)
+    def load_cov_dam_price(self):
+        return np.genfromtxt(
+            'data/travacca_et_al_2017/covariance.csv', delimiter=',')
+
+    def predict_dam_price(self):
+        cov_dam_price = self.load_cov_dam_price()
+        dam_price = self.load_dam_price()
+        dam_predict_price = np.zeros((24, self.time_horizon))
+        for day in range(self.time_horizon):
+            product_matrix = np.reshape(np.dot(
+                    sqrtm(cov_dam_price),
+                    multivariate_normal(np.zeros((24,)), np.eye(24))), (24, 1))
+            matrix_dam_price = np.reshape(dam_price[24 * (
+                day - 1):24 * (day + 1)], (24, 1))
+            dam_predict_price[24 * day:24 * (day + 1), :] = matrix_dam_price + product_matrix
+        return dam_predict_price
+
+    def global_solve(self, num_iter=50):
+        mu, nu, ev_sol, g_sol, local_optimal_cost = self.initialize_gradient_accent(
+            self)
+        for _ in range(num_iter):
+            mu, nu, ev_sol, g_sol, local_optimal_cost = self.next_step_gradiant_accent(
+                mu, nu)
+
+    def initialize_gradient_accent(self):
+        size = len(self.list_localcontrollers)
+        return 0, 0, np.zeros((24, size)), np.zeros((24, size)), np.zeros(
+            (size, 1))
+
+    def next_step_gradient_accent(self, mu, nu):
+        b = self.load_b_matrix()
+        dam_predict_price = self.predict_dam_price()
+        fq = np.array(dam_predict_price - nu, np.dot(b, mu))
+        globalcontroller_variables = (mu, nu, fq)
+        for localcontroller in self.list_localcontrollers:
+            localcontroller.run_local_optim(globalcontroller_variables)

@@ -19,14 +19,21 @@ class TestConstructionGlobalController(unittest.TestCase):
         pass
 
 
-class TestContrucitonTravaccaEtAl2017GlobalController(unittest.TestCase):
+class TestLoadDataTravaccaEtAl2017GlobalController(unittest.TestCase):
     def setUp(self):
         self.globalcontroller = controllers.TravaccaEtAl2017GlobalController()
 
-    def test_data_loading(self):
-        self.assertEqual(self.globalcontroller.b.shape, (24, 96))
-        self.assertEqual(self.globalcontroller.data_main.shape, (37244, 17))
-        self.assertEqual(self.globalcontroller.dam_price.shape, (24,))
+    def test_load_b_matrix(self):
+        self.assertEqual(self.globalcontroller.load_b_matrix().shape, (24, 96))
+
+    def test_load_dam_price(self):
+        self.assertEqual(self.globalcontroller.load_dam_price().shape, (24,))
+
+    def test_load_cov_dam_price(self):
+        self.assertEqual(self.globalcontroller.load_cov_dam_price().shape, (24, 24))
+
+    def test_predict_price(self):
+        self.assertEqual(self.globalcontroller.predict_dam_price().shape, (24, 1))
 
 
 if __name__ == '__main__':

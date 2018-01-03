@@ -1,6 +1,8 @@
 import numpy as np
+import scipy
 from scipy.linalg import sqrtm
 from numpy.random import multivariate_normal
+from numpy.random import rand
 """Controllers."""
 
 
@@ -14,6 +16,9 @@ class LocalController(Controller):
         super().__init__()
         self.agentgroup = agentgroup
         self.globalcontroller = globalcontroller
+
+    def generate_random_pv_gen(self):
+        raise NotImplementedError
 
     def run_local_optim(self, globalcontroller_variables):
         x_result, f_result = self.local_solve(globalcontroller_variables)
@@ -29,6 +34,10 @@ class TravaccaEtAl2017LocalController(LocalController):
 
     def local_solve(self, globalcontroller_variables):
         mu, nu, fq = globalcontroller_variables
+
+    def generate_random_pv_gen(self):
+        data_pv = self.globalcontroller.load_pv_gen()
+        return data_pv + data_pv * (rand(self.globalcontroller.time_horizon * 24)-0.5)
 
 
 class GlobalController(Controller):
@@ -54,17 +63,21 @@ class TravaccaEtAl2017GlobalController(GlobalController):
         super().__init__()
         self.start_day = start_day
         self.time_horizon = time_horizon
+        self.data_main = np.genfromtxt(
+            'data/travacca_et_al_2017/main.csv', delimiter=',')
+
+    def load_pv_gen(self):
+        scale_pv = 10
+        return self.data_main[start:stop:4, 17] / scale_pv
 
     def load_b_matrix(self):
         return np.genfromtxt('data/travacca_et_al_2017/b.csv', delimiter=',')
 
     def load_dam_price(self):
-        data_main = np.genfromtxt(
-            'data/travacca_et_al_2017/main.csv', delimiter=',')
         start = self.start_day * 4 * 24
         stop = self.start_day * 4 * 24 + self.time_horizon * 24 * 4 - 1
         scale_price = 1000
-        return data_main[start:stop:4, 11] / scale_price
+        return self.data_main[start:stop:4, 11] / scale_price
 
     def load_cov_dam_price(self):
         return np.genfromtxt(

@@ -38,9 +38,9 @@ class TravaccaEtAl2017LocalController(LocalController):
     def local_solve(self, globalcontroller_variables):
         mu, nu = globalcontroller_variables
 
-        b = self.load_b_matrix()
+        b_matrix = self.load_b()
         dam_predict_price = self.globalcontroller.predict_dam_price()
-        f = np.array(dam_predict_price - nu, np.dot(b, mu))
+        f = np.concatenate((dam_predict_price - nu, np.dot(b_matrix, mu)), axis=0)
 
         h = self.load_hq()
         a = self.create_new_aq()
@@ -48,7 +48,7 @@ class TravaccaEtAl2017LocalController(LocalController):
         b = self.create_new_bq()
         be = self.load_beq()
 
-        x_result, f_result = self.solve_with_quadprog(h, f, a, ae, b, be)
+        x_result, f_result = self.solve_with_quadprog(h, f, a, b, ae, be)[:2]
         self.g_result = x_result[:24]
         self.ev_result = x_result[24:]
         return x_result, f_result
@@ -69,13 +69,15 @@ class TravaccaEtAl2017LocalController(LocalController):
         h_qp = h
         f_qp = -f
         if ae is not None:
-            a_qp = -np.vstack([ae, a]).T
-            b_qp = -np.hstack([be, b])
+            a_qp = -np.concatenate((ae, a), axis=0).T
+            b_qp = -np.concatenate((be, b), axis=0)
             meq = ae.shape[0]
         else:
             a_qp = -a.T
             b_qp = -b
             meq = 0
+        b_qp = np.reshape(b_qp, (b_qp.shape[0],))
+        f_qp = np.reshape(f_qp, (f_qp.shape[0],))
         return quadprog.solve_qp(h_qp, f_qp, a_qp, b_qp, meq)
 
 
@@ -105,26 +107,27 @@ class TravaccaEtAl2017LocalController(LocalController):
             delimiter=',')[self.identity]
 
     def load_aeq(self):
-        return np.genfromtxt('data/travacca_et_al_2017/aeq.csv', delimiter=',')
+        m = np.genfromtxt('data/travacca_et_al_2017/aeq.csv', delimiter=',')
+        return np.reshape(m, (1, 48))
 
     def load_aq(self):
         return np.genfromtxt('data/travacca_et_al_2017/aq.csv', delimiter=',')
 
     def load_beq(self):
-        return np.genfromtxt('data/travacca_et_al_2017/beq.csv', delimiter=',')
+        return np.reshape(np.genfromtxt('data/travacca_et_al_2017/beq.csv', delimiter=','), (1, 1))
 
     def load_hq(self):
         return np.genfromtxt('data/travacca_et_al_2017/hq.csv', delimiter=',')
 
     def load_lbq(self):
-        return np.genfromtxt(
+        return np.reshape(np.genfromtxt(
             'data/travacca_et_al_2017/lbq.csv',
-            delimiter=',')[:, self.identity]
+            delimiter=',')[:, self.identity], (48, 1))
 
     def load_ubq(self):
-        return np.genfromtxt(
+        return np.reshape(np.genfromtxt(
             'data/travacca_et_al_2017/ubq.csv',
-            delimiter=',')[:, self.identity]
+            delimiter=',')[:, self.identity], (48, 1))
 
     def generate_random_pv_gen(self):
         data_pv_gen = self.globalcontroller.load_pv_gen()
@@ -141,8 +144,8 @@ class TravaccaEtAl2017LocalController(LocalController):
         dam_e_min = self.load_e_min()
         data_pv_gen = self.generate_random_pv_gen()
         data_dam_load = self.generate_random_load()
-        return np.concatenate(
-            (dam_e_max, -dam_e_min, data_pv_gen - data_dam_load), axis=0)
+        return np.reshape(np.concatenate(
+            (dam_e_max, -dam_e_min, data_pv_gen - data_dam_load), axis=0), (72, 1))
 
     def create_new_aq(self):
         aq = self.load_aq()
@@ -253,13 +256,13 @@ class TravaccaEtAl2017GlobalController(GlobalController):
             nu.T, np.dot(np.linalg.inv(cov_dam_price), nu)) + np.dot(
                 c.T, mu) + np.sum(local_optimum_cost)
 
-    def initialize_gradient_accent(self, num_iter):
+    def initialize_gradient_ascent(self, num_iter):
         size = len(self.list_localcontrollers)
         return np.zeros((96, 1)), np.zeros((24, 1)), np.zeros(
             (24, size)), np.zeros((24, size)), np.zeros((size, 1)), np.zeros(
                 (num_iter, 1))
 
-    def next_step_gradient_accent(self, mu, nu, g_result, ev_result,
+    def next_step_gradient_ascent(self, mu, nu, g_result, ev_result,
                                   local_optimum_cost):
         globalcontroller_variables = (mu, nu)
         for i, localcontroller in enumerate(self.list_localcontrollers):

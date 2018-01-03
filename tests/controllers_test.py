@@ -28,10 +28,10 @@ class TestLoadDataTravaccaEtAl2017LocalController(unittest.TestCase):
         self.assertEqual(self.localcontroller.create_new_aq().shape, (168, 48))
 
     def test_create_bq(self):
-        self.assertEqual(self.localcontroller.create_bq().shape, (72,))
+        self.assertEqual(self.localcontroller.create_bq().shape, (72, 1))
 
     def test_create_new_bq(self):
-        self.assertEqual(self.localcontroller.create_new_bq().shape, (168,))
+        self.assertEqual(self.localcontroller.create_new_bq().shape, (168, 1))
 
     def test_load_ev(self):
         self.assertEqual(self.localcontroller.load_e_max().shape, (24,))
@@ -41,12 +41,25 @@ class TestLoadDataTravaccaEtAl2017LocalController(unittest.TestCase):
 
     def test_load_matrix_for_optim(self):
         self.assertEqual(self.localcontroller.load_b().shape, (24, 96))
-        self.assertEqual(self.localcontroller.load_aeq().shape, (48,))
+        self.assertEqual(self.localcontroller.load_aeq().shape, (1, 48))
         self.assertEqual(self.localcontroller.load_aq().shape, (72, 48))
-        self.assertEqual(self.localcontroller.load_beq().shape, ())
+        self.assertEqual(self.localcontroller.load_beq().shape, (1, 1))
         self.assertEqual(self.localcontroller.load_hq().shape, (48, 48))
-        self.assertEqual(self.localcontroller.load_lbq().shape, (48,))
-        self.assertEqual(self.localcontroller.load_ubq().shape, (48,))
+        self.assertEqual(self.localcontroller.load_lbq().shape, (48, 1))
+        self.assertEqual(self.localcontroller.load_ubq().shape, (48, 1))
+
+
+class TestRunOptimTravaccaEtAl2017LocalController(unittest.TestCase):
+    def setUp(self):
+        self.house = agentgroups.ResidentialBuilding(0)
+        self.globalcontroller = controllers.TravaccaEtAl2017GlobalController()
+        self.localcontroller = controllers.TravaccaEtAl2017LocalController(self.house, self.globalcontroller)
+
+    def test_local_solve(self):
+        mu = np.zeros((96, 1))
+        nu = np.zeros((24, 1))
+        self.assertEqual(self.localcontroller.local_solve((mu, nu))[0].shape, (48,))
+
 
 
 class TestConstructionGlobalController(unittest.TestCase):
@@ -68,7 +81,7 @@ class TestLoadDataTravaccaEtAl2017GlobalController(unittest.TestCase):
         self.assertEqual(self.globalcontroller.predict_dam_price().shape, (24, 1))
 
 
-class TestRunGradientAccentTravaccaEtAl2017GlobaController(unittest.TestCase):
+class TestRunGradientAscentTravaccaEtAl2017GlobaController(unittest.TestCase):
     def setUp(self):
         self.globalcontroller = controllers.TravaccaEtAl2017GlobalController()
 

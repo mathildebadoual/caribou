@@ -78,7 +78,7 @@ class TravaccaEtAl2017LocalController(LocalController):
             meq = 0
         b_qp = np.reshape(b_qp, (b_qp.shape[0],))
         f_qp = np.reshape(f_qp, (f_qp.shape[0],))
-        return quadprog.solve_qp(h_qp, f_qp, a_qp, b_qp, meq)
+        return quadprog.solve_qp(h_qp, f_qp, a_qp, b_qp, meq, factorized=False)
 
 
 # TODO(Mathilde): Create a class load or put the load functions outside of classes + permit more than 100 houses by building those matrices in the code

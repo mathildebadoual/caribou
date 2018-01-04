@@ -190,6 +190,9 @@ class TravaccaEtAl2017GlobalController(GlobalController):
         scale_pv = 10
         return self.data_main[start:stop:4, 16] / scale_pv
 
+    def load_b(self):
+        return np.genfromtxt('data/travacca_et_al_2017/b.csv', delimiter=',')
+
     def load_e_max_agg(self):
         return np.genfromtxt(
             'data/travacca_et_al_2017/dam_e_max_agg.csv', delimiter=',')
@@ -207,9 +210,10 @@ class TravaccaEtAl2017GlobalController(GlobalController):
             'data/travacca_et_al_2017/dam_EV_min_agg.csv', delimiter=',')
 
     def load_c(self):
-        return np.genfromtxt('data/travacca_et_al_2017/c.csv', delimiter=',')
+        return np.reshape(np.genfromtxt('data/travacca_et_al_2017/c.csv', delimiter=','), (96, 1))
 
     def load_dam_price(self):
+        c = self.load_c()
         start = self.start_day * 4 * 24
         stop = self.start_day * 4 * 24 + self.time_horizon * 24 * 4 - 1
         scale_price = 1000
@@ -248,6 +252,17 @@ class TravaccaEtAl2017GlobalController(GlobalController):
             g_result, ev_result, local_optimum_cost = self.next_step_gradiant_accent(
                 mu, nu, g_result, ev_result, local_optimum_cost)
             total_cost[i] = self.compute_total_cost(mu, nu, alpha, local_optimum_cost)
+            mu = self.update_mu(mu, gamma, ev_result)
+            nu - self.update_nu(nu, gamma, alpha, g_result)
+
+    def update_mu(self, mu, gamma, ev_result):
+        c = self.load_c()
+        b = self.load_b()
+        return mu + gamma * c + gamma * np.dot(b.T, np.reshape(np.sum(ev_result, axis=1), (24, 1)))
+
+    def update_nu(self, nu, gamma, alpha, g_result):
+        cov_dam_price = self.load_cov_dam_price()
+        return nu - gamma * 1 / (2 * alpha) * np.dot(np.linalg.inv(cov_dam_price), nu) - gamma * np.reshape(np.sum(g_result, axis=1), (24, 1))
 
     def compute_total_cost(self, mu, nu, alpha, local_optimum_cost):
         cov_dam_price = self.load_cov_dam_price()

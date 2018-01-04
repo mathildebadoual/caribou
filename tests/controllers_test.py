@@ -80,16 +80,24 @@ class TestLoadDataTravaccaEtAl2017GlobalController(unittest.TestCase):
     def test_predict_price(self):
         self.assertEqual(self.globalcontroller.predict_dam_price().shape, (24, 1))
 
+    def test_load_c(self):
+        self.assertEqual(self.globalcontroller.load_c().shape, (96, 1))
+
 
 class TestRunGradientAscentTravaccaEtAl2017GlobaController(unittest.TestCase):
     def setUp(self):
         self.globalcontroller = controllers.TravaccaEtAl2017GlobalController()
         self.house = agentgroups.ResidentialBuilding(0)
         self.localcontroller = controllers.TravaccaEtAl2017LocalController(self.house, self.globalcontroller)
-        self.globalcontroller.set_list_loclcontroller([self.localcontroller])
+        self.globalcontroller.set_list_localcontrollers([self.localcontroller])
 
     def test_initialize_gradient_ascent(self):
-        self.assertEqual(self.globalcontroller.initialize_gradient_ascent(10)), (np.zeros((96, 1)), np.zeros((24, 1)), np.zeros((24, 1)), np.zeros((24, 1)), np.zeros((1, 1)), np.zeros((10, 1))))
+        self.assertEqual(self.globalcontroller.initialize_gradient_ascent(10)[0].shape, (96, 1))
+        self.assertEqual(self.globalcontroller.initialize_gradient_ascent(10)[1].shape, (24, 1))
+        self.assertEqual(self.globalcontroller.initialize_gradient_ascent(10)[2].shape, (24, 1))
+        self.assertEqual(self.globalcontroller.initialize_gradient_ascent(10)[3].shape, (24, 1))
+        self.assertEqual(self.globalcontroller.initialize_gradient_ascent(10)[4].shape, (1, 1))
+        self.assertEqual(self.globalcontroller.initialize_gradient_ascent(10)[5].shape, (10, 1))
 
     def test_compute_total_cost(self):
         mu = np.zeros((96, 1))
@@ -97,13 +105,20 @@ class TestRunGradientAscentTravaccaEtAl2017GlobaController(unittest.TestCase):
         alpha = 1
         local_optimum_cost = np.ones((50, 1))
         self.assertEqual(self.globalcontroller.compute_total_cost(mu, nu, alpha, local_optimum_cost).shape, (1, 1))
+        self.assertEqual(self.globalcontroller.compute_total_cost(mu, nu, alpha, local_optimum_cost), 50)
 
     def test_update_mu(self):
-        pass
-
+        mu = np.zeros((96, 1))
+        gamma = 0.00001
+        ev_result = np.zeros((24, 1))
+        self.assertEqual(self.globalcontroller.update_mu(mu, gamma, ev_result).shape, (96, 1))
 
     def test_update_nu(self):
-        pass
+        nu = np.zeros((24, 1))
+        gamma = 0.00001
+        alpha = 1
+        g_result = np.zeros((24, 1))
+        self.assertEqual(self.globalcontroller.update_nu(nu, gamma, alpha, g_result).shape, (24, 1))
 
 
 

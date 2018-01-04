@@ -80,6 +80,7 @@ class TestLoadDataTravaccaEtAl2017GlobalController(unittest.TestCase):
         self.assertEqual(self.globalcontroller.dam_demand.shape, (24, ))
         self.assertEqual(self.globalcontroller.cov_dam_price.shape, (24, 24))
         self.assertEqual(self.globalcontroller.c.shape, (96, 1))
+        self.assertEqual(self.globalcontroller.pv_gen.shape, (24,))
 
     def test_predict_price(self):
         self.assertEqual(self.globalcontroller.predict_dam_price().shape,

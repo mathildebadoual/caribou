@@ -3,9 +3,10 @@
 import numpy as np
 import scipy.linalg
 import quadprog
-import matplotlib.pyplot as plt
+import caribou.callback as callback
 
 np.random.seed(seed=1)
+callbackplot = callback.CallBackPlot()
 
 class Controller:
     def __init__(self):
@@ -114,19 +115,19 @@ class TravaccaEtAl2017LocalController(LocalController):
             (dam_predict_price - nu, np.dot(self.b, mu)), axis=0)
 
     def generate_random_pv_gen(self):
-        data_pv_gen = self.globalcontroller.load_pv_gen()
+        data_pv_gen = self.globalcontroller.pv_gen
         return data_pv_gen + data_pv_gen * (
             np.random.rand(self.globalcontroller.time_horizon * 24) - 0.5)
 
     def generate_random_load(self):
-        data_dam_demand = self.globalcontroller.load_dam_demand()
+        data_dam_demand = self.globalcontroller.dam_demand
         return data_dam_demand + data_dam_demand * (
             np.random.rand(self.globalcontroller.time_horizon * 24) - 0.5)
 
     def create_bq(self):
         data_pv_gen = self.generate_random_pv_gen()
         data_dam_load = self.generate_random_load()
-        visualize((data_pv_gen, data_dam_load))
+        callbackplot.add([data_pv_gen, data_dam_load], 'pv_gen and dam_load for each individual')
         return np.reshape(
             np.concatenate(
                 (self.e_max, -self.e_min, data_pv_gen - data_dam_load),
@@ -159,7 +160,7 @@ class GlobalController(Controller):
 
 
 class TravaccaEtAl2017GlobalController(GlobalController):
-    def __init__(self, start_day=2, time_horizon=1):  # time_horizon in days
+    def __init__(self, start_day=32, time_horizon=1):  # time_horizon in days
         super().__init__()
         self.start_day = start_day
         self.time_horizon = time_horizon
@@ -182,24 +183,25 @@ class TravaccaEtAl2017GlobalController(GlobalController):
             'data/travacca_et_al_2017/covariance.csv', delimiter=',')
         self.dam_price = self.load_dam_price()
         self.dam_demand = self.load_dam_demand()
+        callbackplot.add([self.dam_price, self.dam_demand], 'dam_price and dam_demand')
 
     def load_pv_gen(self):
-        start = self.start_day * 4 * 24
-        stop = self.start_day * 4 * 24 + self.time_horizon * 24 * 4 - 1
+        start = self.start_day * 4 * 24 + 1
+        stop = self.start_day * 4 * 24 + self.time_horizon * 24 * 4
         scale_pv = 10
         return self.data_main[start:stop:4, 16] / scale_pv
 
     def load_dam_price(self):
-        start = self.start_day * 4 * 24
-        stop = self.start_day * 4 * 24 + self.time_horizon * 24 * 4 - 1
+        start = self.start_day * 4 * 24 + 1
+        stop = self.start_day * 4 * 24 + self.time_horizon * 24 * 4
         scale_price = 1000
-        return self.data_main[start:stop:4, 11] / scale_price
+        return self.data_main[start:stop:4, 10] / scale_price
 
     def load_dam_demand(self):
-        start = self.start_day * 4 * 24
-        stop = self.start_day * 4 * 24 + self.time_horizon * 24 * 4 - 1
+        start = self.start_day * 4 * 24 + 1
+        stop = self.start_day * 4 * 24 + self.time_horizon * 24 * 4
         scale_load = 10000
-        return self.data_main[start:stop:4, 10] / scale_load
+        return self.data_main[start:stop:4, 9] / scale_load
 
     def predict_dam_price(self):
         dam_predict_price = np.zeros((24, self.time_horizon))
@@ -228,11 +230,11 @@ class TravaccaEtAl2017GlobalController(GlobalController):
             nu - self.update_nu(nu, gamma, alpha, g_result)
             print('mu=', mu)
             print('nu=', nu)
-            visualize((np.sum(g_result, axis=1), np.sum(ev_result, axis=1)))
+            callbackplot.add([np.sum(g_result, axis=1), np.sum(ev_result, axis=1)], 'results of global_solve')
 
     def update_mu(self, mu, gamma, ev_result):
-        return mu + gamma * self.c + gamma * np.dot(
-            self.b.T, np.reshape(np.sum(ev_result, axis=1), (24, 1)))
+        return max(mu + gamma * self.c + gamma * np.dot(
+            self.b.T, np.reshape(np.sum(ev_result, axis=1), (24, 1))), 0)
 
     def update_nu(self, nu, gamma, alpha, g_result):
         return nu - gamma * 1 / (2 * alpha) * np.dot(
@@ -262,9 +264,4 @@ class TravaccaEtAl2017GlobalController(GlobalController):
 
         return g_result, ev_result, local_optimum_cost
 
-
-def visualize(to_plot):
-    plt.figure(figsize=(10, 5))
-    for element in to_plot:
-        plt.plot(element)
-    plt.show()
+callbackplot.plot_all()

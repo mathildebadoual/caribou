@@ -127,7 +127,7 @@ class TravaccaEtAl2017LocalController(LocalController):
     def create_bq(self):
         data_pv_gen = self.generate_random_pv_gen()
         data_dam_load = self.generate_random_load()
-        callbackplot.add([data_pv_gen, data_dam_load], 'pv_gen and dam_load for each individual')
+        callbackplot.plot([data_pv_gen, data_dam_load], 'pv_gen and dam_load for each individual')
         return np.reshape(
             np.concatenate(
                 (self.e_max, -self.e_min, data_pv_gen - data_dam_load),
@@ -183,7 +183,7 @@ class TravaccaEtAl2017GlobalController(GlobalController):
             'data/travacca_et_al_2017/covariance.csv', delimiter=',')
         self.dam_price = self.load_dam_price()
         self.dam_demand = self.load_dam_demand()
-        callbackplot.add([self.dam_price, self.dam_demand], 'dam_price and dam_demand')
+        callbackplot.plot([self.dam_price, self.dam_demand], 'dam_price and dam_demand')
 
     def load_pv_gen(self):
         start = self.start_day * 4 * 24 + 1
@@ -230,7 +230,7 @@ class TravaccaEtAl2017GlobalController(GlobalController):
             nu - self.update_nu(nu, gamma, alpha, g_result)
             print('mu=', mu)
             print('nu=', nu)
-            callbackplot.add([np.sum(g_result, axis=1), np.sum(ev_result, axis=1)], 'results of global_solve')
+            callbackplot.plot([np.sum(g_result, axis=1), np.sum(ev_result, axis=1)], 'results of global_solve')
 
     def update_mu(self, mu, gamma, ev_result):
         return max(mu + gamma * self.c + gamma * np.dot(

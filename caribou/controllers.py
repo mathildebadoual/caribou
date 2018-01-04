@@ -5,6 +5,7 @@ import scipy.linalg
 import quadprog
 import matplotlib.pyplot as plt
 
+np.random.seed(seed=1)
 
 class Controller:
     def __init__(self):
@@ -33,8 +34,8 @@ class LocalController(Controller):
 class TravaccaEtAl2017LocalController(LocalController):
     def __init__(self, agentgroup, globalcontroller):
         super().__init__(agentgroup, globalcontroller)
-        self.identity = self.id_generator
-        self.id_generator += 1
+        self.identity = LocalController.id_generator
+        LocalController.id_generator += 1
         self.b = np.genfromtxt('data/travacca_et_al_2017/b.csv', delimiter=',')
         self.e_max = np.genfromtxt(
             'data/travacca_et_al_2017/dam_e_max.csv',
@@ -125,6 +126,7 @@ class TravaccaEtAl2017LocalController(LocalController):
     def create_bq(self):
         data_pv_gen = self.generate_random_pv_gen()
         data_dam_load = self.generate_random_load()
+        visualize((data_pv_gen, data_dam_load))
         return np.reshape(
             np.concatenate(
                 (self.e_max, -self.e_min, data_pv_gen - data_dam_load),
@@ -224,7 +226,9 @@ class TravaccaEtAl2017GlobalController(GlobalController):
                                                     local_optimum_cost)
             mu = self.update_mu(mu, gamma, ev_result)
             nu - self.update_nu(nu, gamma, alpha, g_result)
-            self.visualize(g_result, ev_result)
+            print('mu=', mu)
+            print('nu=', nu)
+            visualize((np.sum(g_result, axis=1), np.sum(ev_result, axis=1)))
 
     def update_mu(self, mu, gamma, ev_result):
         return mu + gamma * self.c + gamma * np.dot(
@@ -255,10 +259,12 @@ class TravaccaEtAl2017GlobalController(GlobalController):
             g_result[:, i] = x_result[:24]
             ev_result[:, i] = x_result[24:]
             local_optimum_cost[i, 0] = f_result
+
         return g_result, ev_result, local_optimum_cost
 
-    def visualize(self, g_result, ev_result):
-        plt.figure(figsize=(15, 15))
-        plt.plot(np.sum(g_result, axis=1), 'g')
-        plt.plot(np.sum(ev_result, axis=1), 'r')
-        plt.show()
+
+def visualize(to_plot):
+    plt.figure(figsize=(10, 5))
+    for element in to_plot:
+        plt.plot(element)
+    plt.show()

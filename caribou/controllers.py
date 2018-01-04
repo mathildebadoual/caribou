@@ -3,6 +3,7 @@
 import numpy as np
 import scipy.linalg
 import quadprog
+import matplotlib.pyplot as plt
 
 
 class Controller:
@@ -34,26 +35,52 @@ class TravaccaEtAl2017LocalController(LocalController):
         super().__init__(agentgroup, globalcontroller)
         self.identity = self.id_generator
         self.id_generator += 1
+        self.b = np.genfromtxt('data/travacca_et_al_2017/b.csv', delimiter=',')
+        self.e_max = np.genfromtxt(
+            'data/travacca_et_al_2017/dam_e_max.csv',
+            delimiter=',')[self.identity]
+        self.e_min = np.genfromtxt(
+            'data/travacca_et_al_2017/dam_e_min.csv',
+            delimiter=',')[self.identity]
+        self.ev_max = np.genfromtxt(
+            'data/travacca_et_al_2017/dam_EV_max.csv',
+            delimiter=',')[self.identity]
+        self.ev_min = np.genfromtxt(
+            'data/travacca_et_al_2017/dam_EV_min.csv',
+            delimiter=',')[self.identity]
+        self.aeq = np.reshape(
+            np.genfromtxt('data/travacca_et_al_2017/aeq.csv', delimiter=','),
+            (1, 48))
+        self.aq = np.genfromtxt(
+            'data/travacca_et_al_2017/aq.csv', delimiter=',')
+        self.beq = np.reshape(
+            np.genfromtxt('data/travacca_et_al_2017/beq.csv', delimiter=','),
+            (1, 1))
+        self.hq = np.genfromtxt(
+            'data/travacca_et_al_2017/hq.csv', delimiter=',')
+        self.lbq = np.reshape(
+            np.genfromtxt('data/travacca_et_al_2017/lbq.csv',
+                          delimiter=',')[:, self.identity], (48, 1))
+        self.lbq = np.reshape(
+            np.genfromtxt('data/travacca_et_al_2017/lbq.csv',
+                          delimiter=',')[:, self.identity], (48, 1))
+        self.ubq = np.reshape(
+            np.genfromtxt('data/travacca_et_al_2017/ubq.csv',
+                          delimiter=',')[:, self.identity], (48, 1))
 
     def local_solve(self, globalcontroller_variables):
         mu, nu = globalcontroller_variables
+        fq = self.create_fq(mu, nu)
+        new_aq = self.create_new_aq()
+        new_bq = self.create_new_bq()
 
-        b_matrix = self.load_b()
-        dam_predict_price = self.globalcontroller.predict_dam_price()
-        f = np.concatenate((dam_predict_price - nu, np.dot(b_matrix, mu)), axis=0)
+        print(self.identity)
 
-        h = self.load_hq()
-        a = self.create_new_aq()
-        ae = self.load_aeq()
-        b = self.create_new_bq()
-        be = self.load_beq()
-
-        x_result, f_result = self.solve_with_quadprog(h, f, a, b, ae, be)[:2]
+        x_result, f_result = self.solve_with_quadprog(
+            self.hq, fq, new_aq, new_bq, self.aeq, self.beq)[:2]
         self.g_result = x_result[:24]
         self.ev_result = x_result[24:]
         return x_result, f_result
-
-# TODO(Mathilde): create a class with all the solvers modified like this one
 
     def solve_with_quadprog(self, h, f, a, b, ae, be):
         """
@@ -76,58 +103,14 @@ class TravaccaEtAl2017LocalController(LocalController):
             a_qp = -a.T
             b_qp = -b
             meq = 0
-        b_qp = np.reshape(b_qp, (b_qp.shape[0],))
-        f_qp = np.reshape(f_qp, (f_qp.shape[0],))
-        return quadprog.solve_qp(h_qp, f_qp, a_qp, b_qp, meq, factorized=False)
+        b_qp = np.reshape(b_qp, (b_qp.shape[0], ))
+        f_qp = np.reshape(f_qp, (f_qp.shape[0], ))
+        return quadprog.solve_qp(h_qp, f_qp, a_qp, b_qp, meq)
 
-
-# TODO(Mathilde): Create a class load or put the load functions outside of classes + permit more than 100 houses by building those matrices in the code
-
-    def load_b(self):
-        return np.genfromtxt('data/travacca_et_al_2017/b.csv', delimiter=',')
-
-    def load_e_max(self):
-        return np.genfromtxt(
-            'data/travacca_et_al_2017/dam_e_max.csv',
-            delimiter=',')[self.identity]
-
-    def load_e_min(self):
-        return np.genfromtxt(
-            'data/travacca_et_al_2017/dam_e_min.csv',
-            delimiter=',')[self.identity]
-
-    def load_ev_max(self):
-        return np.genfromtxt(
-            'data/travacca_et_al_2017/dam_EV_max.csv',
-            delimiter=',')[self.identity]
-
-    def load_ev_min(self):
-        return np.genfromtxt(
-            'data/travacca_et_al_2017/dam_EV_min.csv',
-            delimiter=',')[self.identity]
-
-    def load_aeq(self):
-        m = np.genfromtxt('data/travacca_et_al_2017/aeq.csv', delimiter=',')
-        return np.reshape(m, (1, 48))
-
-    def load_aq(self):
-        return np.genfromtxt('data/travacca_et_al_2017/aq.csv', delimiter=',')
-
-    def load_beq(self):
-        return np.reshape(np.genfromtxt('data/travacca_et_al_2017/beq.csv', delimiter=','), (1, 1))
-
-    def load_hq(self):
-        return np.genfromtxt('data/travacca_et_al_2017/hq.csv', delimiter=',')
-
-    def load_lbq(self):
-        return np.reshape(np.genfromtxt(
-            'data/travacca_et_al_2017/lbq.csv',
-            delimiter=',')[:, self.identity], (48, 1))
-
-    def load_ubq(self):
-        return np.reshape(np.genfromtxt(
-            'data/travacca_et_al_2017/ubq.csv',
-            delimiter=',')[:, self.identity], (48, 1))
+    def create_fq(self, mu, nu):
+        dam_predict_price = self.globalcontroller.predict_dam_price()
+        return np.concatenate(
+            (dam_predict_price - nu, np.dot(self.b, mu)), axis=0)
 
     def generate_random_pv_gen(self):
         data_pv_gen = self.globalcontroller.load_pv_gen()
@@ -140,22 +123,19 @@ class TravaccaEtAl2017LocalController(LocalController):
             np.random.rand(self.globalcontroller.time_horizon * 24) - 0.5)
 
     def create_bq(self):
-        dam_e_max = self.load_e_max()
-        dam_e_min = self.load_e_min()
         data_pv_gen = self.generate_random_pv_gen()
         data_dam_load = self.generate_random_load()
-        return np.reshape(np.concatenate(
-            (dam_e_max, -dam_e_min, data_pv_gen - data_dam_load), axis=0), (72, 1))
+        return np.reshape(
+            np.concatenate(
+                (self.e_max, -self.e_min, data_pv_gen - data_dam_load),
+                axis=0), (72, 1))
 
     def create_new_aq(self):
-        aq = self.load_aq()
-        return np.concatenate((aq, np.eye(48), -np.eye(48)), axis=0)
+        return np.concatenate((self.aq, np.eye(48), -np.eye(48)), axis=0)
 
     def create_new_bq(self):
-        ubq = self.load_ubq()
-        lbq = self.load_lbq()
         bq = self.create_bq()
-        return np.concatenate((bq, ubq, -lbq), axis=0)
+        return np.concatenate((bq, self.ubq, -self.lbq), axis=0)
 
 
 class GlobalController(Controller):
@@ -183,6 +163,23 @@ class TravaccaEtAl2017GlobalController(GlobalController):
         self.time_horizon = time_horizon
         self.data_main = np.genfromtxt(
             'data/travacca_et_al_2017/main.csv', delimiter=',')
+        self.pv_gen = self.load_pv_gen()
+        self.b = np.genfromtxt('data/travacca_et_al_2017/b.csv', delimiter=',')
+        self.e_max_agg = np.genfromtxt(
+            'data/travacca_et_al_2017/dam_e_max_agg.csv', delimiter=',')
+        self.e_min_agg = np.genfromtxt(
+            'data/travacca_et_al_2017/dam_e_min_agg.csv', delimiter=',')
+        self.ev_max_agg = np.genfromtxt(
+            'data/travacca_et_al_2017/dam_EV_max_agg.csv', delimiter=',')
+        self.ev_min_agg = np.genfromtxt(
+            'data/travacca_et_al_2017/dam_EV_min_agg.csv', delimiter=',')
+        self.c = np.reshape(
+            np.genfromtxt('data/travacca_et_al_2017/c.csv', delimiter=','),
+            (96, 1))
+        self.cov_dam_price = np.genfromtxt(
+            'data/travacca_et_al_2017/covariance.csv', delimiter=',')
+        self.dam_price = self.load_dam_price()
+        self.dam_demand = self.load_dam_demand()
 
     def load_pv_gen(self):
         start = self.start_day * 4 * 24
@@ -190,30 +187,7 @@ class TravaccaEtAl2017GlobalController(GlobalController):
         scale_pv = 10
         return self.data_main[start:stop:4, 16] / scale_pv
 
-    def load_b(self):
-        return np.genfromtxt('data/travacca_et_al_2017/b.csv', delimiter=',')
-
-    def load_e_max_agg(self):
-        return np.genfromtxt(
-            'data/travacca_et_al_2017/dam_e_max_agg.csv', delimiter=',')
-
-    def load_e_min_agg(self):
-        return np.genfromtxt(
-            'data/travacca_et_al_2017/dam_e_min_agg.csv', delimiter=',')
-
-    def load_ev_max_agg(self):
-        return np.genfromtxt(
-            'data/travacca_et_al_2017/dam_EV_max_agg.csv', delimiter=',')
-
-    def load_ev_min_agg(self):
-        return np.genfromtxt(
-            'data/travacca_et_al_2017/dam_EV_min_agg.csv', delimiter=',')
-
-    def load_c(self):
-        return np.reshape(np.genfromtxt('data/travacca_et_al_2017/c.csv', delimiter=','), (96, 1))
-
     def load_dam_price(self):
-        c = self.load_c()
         start = self.start_day * 4 * 24
         stop = self.start_day * 4 * 24 + self.time_horizon * 24 * 4 - 1
         scale_price = 1000
@@ -225,51 +199,46 @@ class TravaccaEtAl2017GlobalController(GlobalController):
         scale_load = 10000
         return self.data_main[start:stop:4, 10] / scale_load
 
-    def load_cov_dam_price(self):
-        return np.genfromtxt(
-            'data/travacca_et_al_2017/covariance.csv', delimiter=',')
-
     def predict_dam_price(self):
-        cov_dam_price = self.load_cov_dam_price()
-        dam_price = self.load_dam_price()
         dam_predict_price = np.zeros((24, self.time_horizon))
         for day in range(self.time_horizon):
             product_matrix = np.reshape(
                 np.dot(
-                    scipy.linalg.sqrtm(cov_dam_price),
+                    scipy.linalg.sqrtm(self.cov_dam_price),
                     np.random.multivariate_normal(
                         np.zeros((24, )), np.eye(24))), (24, 1))
             matrix_dam_price = np.reshape(
-                dam_price[24 * (day - 1):24 * (day + 1)], (24, 1))
+                self.dam_price[24 * (day - 1):24 * (day + 1)], (24, 1))
             dam_predict_price[24 * day:24 * (
                 day + 1), :] = matrix_dam_price + product_matrix
         return dam_predict_price
 
-    def global_solve(self, num_iter=50, gamma=0.00001, alpha=1):
-        mu, nu, g_result, ev_result, local_optimum_cost, total_cost = self.initialize_gradient_accent(
-            self, num_iter)
+    def global_solve(self, num_iter=2, gamma=0.00001, alpha=1):
+        # TODO(Mathilde): verify if list_localcontroller is set. Or find a way to set it automaticaly
+        mu, nu, g_result, ev_result, local_optimum_cost, total_cost = self.initialize_gradient_ascent(
+            num_iter)
         for i in range(num_iter):
-            g_result, ev_result, local_optimum_cost = self.next_step_gradiant_accent(
+            g_result, ev_result, local_optimum_cost = self.next_step_gradient_ascent(
                 mu, nu, g_result, ev_result, local_optimum_cost)
-            total_cost[i] = self.compute_total_cost(mu, nu, alpha, local_optimum_cost)
+            total_cost[i] = self.compute_total_cost(mu, nu, alpha,
+                                                    local_optimum_cost)
             mu = self.update_mu(mu, gamma, ev_result)
             nu - self.update_nu(nu, gamma, alpha, g_result)
+            self.visualize(g_result, ev_result)
 
     def update_mu(self, mu, gamma, ev_result):
-        c = self.load_c()
-        b = self.load_b()
-        return mu + gamma * c + gamma * np.dot(b.T, np.reshape(np.sum(ev_result, axis=1), (24, 1)))
+        return mu + gamma * self.c + gamma * np.dot(
+            self.b.T, np.reshape(np.sum(ev_result, axis=1), (24, 1)))
 
     def update_nu(self, nu, gamma, alpha, g_result):
-        cov_dam_price = self.load_cov_dam_price()
-        return nu - gamma * 1 / (2 * alpha) * np.dot(np.linalg.inv(cov_dam_price), nu) - gamma * np.reshape(np.sum(g_result, axis=1), (24, 1))
+        return nu - gamma * 1 / (2 * alpha) * np.dot(
+            np.linalg.inv(self.cov_dam_price), nu) - gamma * np.reshape(
+                np.sum(g_result, axis=1), (24, 1))
 
     def compute_total_cost(self, mu, nu, alpha, local_optimum_cost):
-        cov_dam_price = self.load_cov_dam_price()
-        c = self.load_c()
         return -1 / (4 * alpha) * np.dot(
-            nu.T, np.dot(np.linalg.inv(cov_dam_price), nu)) + np.dot(
-                c.T, mu) + np.sum(local_optimum_cost)
+            nu.T, np.dot(np.linalg.inv(self.cov_dam_price), nu)) + np.dot(
+                self.c.T, mu) + np.sum(local_optimum_cost)
 
     def initialize_gradient_ascent(self, num_iter):
         size = len(self.list_localcontrollers)
@@ -287,3 +256,9 @@ class TravaccaEtAl2017GlobalController(GlobalController):
             ev_result[:, i] = x_result[24:]
             local_optimum_cost[i, 0] = f_result
         return g_result, ev_result, local_optimum_cost
+
+    def visualize(self, g_result, ev_result):
+        plt.figure(figsize=(15, 15))
+        plt.plot(np.sum(g_result, axis=1), 'g')
+        plt.plot(np.sum(ev_result, axis=1), 'r')
+        plt.show()

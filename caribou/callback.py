@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 
@@ -10,7 +12,8 @@ class CallBackPlot():
         for element in to_plot:
             plt.plot(element)
         plt.title(title)
-        plt.show()
+        name_file = title+'.png'
+        plt.savefig(name_file)
 
     def add(self, to_plot, title):
         self.plot_waiting.append((to_plot, title))

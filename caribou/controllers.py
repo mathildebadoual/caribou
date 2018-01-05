@@ -2,23 +2,16 @@
 
 import numpy as np
 import scipy.linalg
-import caribou.callback as callback
 import caribou.solvers as solvers
 
-callbackplot = callback.CallBackPlot()
 
-class Controller:
-    def __init__(self):
-        pass
-
-
-class LocalController(Controller):
-
-    def __init__(self, agentgroup, globalcontroller, index):
-        super().__init__()
+class LocalController():
+    def __init__(self, agentgroup, globalcontroller, plot_callback=None):
         self.agentgroup = agentgroup
         self.globalcontroller = globalcontroller
-        self.index = index
+        self.group_id = self.agentgroup.get_group_id()
+        if plot_callback is not None:
+            self.plot_calback = plot_callback
 
     def generate_random_pv_gen(self):
         raise NotImplementedError
@@ -32,21 +25,21 @@ class LocalController(Controller):
 
 
 class TravaccaEtAl2017LocalController(LocalController):
-    def __init__(self, agentgroup, globalcontroller, index):
-        super().__init__(agentgroup, globalcontroller, index)
+    def __init__(self, agentgroup, globalcontroller, plot_callback=None):
+        super().__init__(agentgroup, globalcontroller, plot_callback=plot_callback)
         self.b = np.genfromtxt('data/travacca_et_al_2017/b.csv', delimiter=',')
         self.e_max = np.genfromtxt(
             'data/travacca_et_al_2017/dam_e_max.csv',
-            delimiter=',')[self.index]
+            delimiter=',')[self.group_id]
         self.e_min = np.genfromtxt(
             'data/travacca_et_al_2017/dam_e_min.csv',
-            delimiter=',')[self.index]
+            delimiter=',')[self.group_id]
         self.ev_max = np.genfromtxt(
             'data/travacca_et_al_2017/dam_EV_max.csv',
-            delimiter=',')[self.index]
+            delimiter=',')[self.group_id]
         self.ev_min = np.genfromtxt(
             'data/travacca_et_al_2017/dam_EV_min.csv',
-            delimiter=',')[self.index]
+            delimiter=',')[self.group_id]
         self.aeq = np.reshape(
             np.genfromtxt('data/travacca_et_al_2017/aeq.csv', delimiter=','),
             (1, 48))
@@ -59,18 +52,18 @@ class TravaccaEtAl2017LocalController(LocalController):
             'data/travacca_et_al_2017/hq.csv', delimiter=',')
         self.lbq = np.reshape(
             np.genfromtxt('data/travacca_et_al_2017/lbq.csv',
-                          delimiter=',')[:, self.index], (48, 1))
+                          delimiter=',')[:, self.group_id], (48, 1))
         self.ubq = np.reshape(
             np.genfromtxt('data/travacca_et_al_2017/ubq.csv',
-                          delimiter=',')[:, self.index], (48, 1))
+                          delimiter=',')[:, self.group_id], (48, 1))
 
     def local_solve(self, globalcontroller_variables):
         mu, nu = globalcontroller_variables
         fq = self.create_fq(mu, nu)
         new_aq = self.create_new_aq()
         new_bq = self.create_new_bq()
-        x_result, f_result = solvers.with_cvxpy(
-            self.hq, fq, new_aq, new_bq, self.aeq, self.beq)[:2]
+        x_result, f_result = solvers.with_cvxpy(self.hq, fq, new_aq, new_bq,
+                                                self.aeq, self.beq)[:2]
         self.g_result = x_result[:24]
         self.ev_result = x_result[24:]
         return x_result, f_result
@@ -106,10 +99,14 @@ class TravaccaEtAl2017LocalController(LocalController):
         return np.concatenate((bq, self.ubq, -self.lbq), axis=0)
 
 
-class GlobalController(Controller):
-    def __init__(self):
-        super().__init__()
+# TODO(Mathilde): Create a new module for Global Controller?
+
+
+class GlobalController():
+    def __init__(self, plot_callback=None):
         self.list_localcontrollers = []
+        if plot_callback is not None:
+            self.plot_callback = plot_callback
 
     def set_list_localcontrollers(self, list_localcontrollers):
         self.list_localcontrollers = list_localcontrollers
@@ -125,8 +122,9 @@ class GlobalController(Controller):
 
 
 class TravaccaEtAl2017GlobalController(GlobalController):
-    def __init__(self, start_day=32, time_horizon=1):  # time_horizon in days
-        super().__init__()
+    def __init__(self, start_day=32, time_horizon=1,
+                 plot_callback=None):  # time_horizon in days
+        super().__init__(plot_callback=plot_callback)
         self.start_day = start_day
         self.time_horizon = time_horizon
         self.data_main = np.genfromtxt(
@@ -150,7 +148,9 @@ class TravaccaEtAl2017GlobalController(GlobalController):
 
     def load_cov_dam_price(self):
         scale_cov = 1000**2
-        return np.genfromtxt('data/travacca_et_al_2017/covariance.csv', delimiter=',') / scale_cov
+        return np.genfromtxt(
+            'data/travacca_et_al_2017/covariance.csv',
+            delimiter=',') / scale_cov
 
     def load_pv_gen(self):
         start = self.start_day * 4 * 24 + 1
@@ -195,11 +195,20 @@ class TravaccaEtAl2017GlobalController(GlobalController):
                                                     local_optimum_cost)
             mu = self.update_mu(mu, gamma, ev_result)
             nu = self.update_nu(nu, gamma, alpha, g_result)
-        callbackplot.plot([total_cost], 'total_cost_predicted')
+        self.plot_callback([np.sum(g_result, axis=1) , np.sum(ev_result, axis=1)],
+                           'final load from grid and ev consumption',
+                           ['g_result', 'ev_result'])
+        self.plot_callback([total_cost], 'total_cost_predicted',
+                           ['total cost'])
+        self.plot_callback([self.dam_price, self.dam_demand],
+                           'DAM prices and energy demand',
+                           ['dam_price', 'dam_demand'])
+
 
     def update_mu(self, mu, gamma, ev_result):
         return np.maximum(mu + gamma * self.c + gamma * np.dot(
-            self.b.T, np.reshape(np.sum(ev_result, axis=1), (24, 1))), np.zeros((96, 1)))
+            self.b.T, np.reshape(np.sum(ev_result, axis=1), (24, 1))),
+                          np.zeros((96, 1)))
 
     def update_nu(self, nu, gamma, alpha, g_result):
         return nu - gamma * 1 / (2 * alpha) * np.dot(
@@ -226,7 +235,4 @@ class TravaccaEtAl2017GlobalController(GlobalController):
             g_result[:, i] = x_result[:24]
             ev_result[:, i] = x_result[24:]
             local_optimum_cost[i, 0] = f_result
-
         return g_result, ev_result, local_optimum_cost
-
-callbackplot.plot_all()

@@ -1,6 +1,7 @@
 codecov
 coverage
 cython
+cvxpy
 matplotlib
 nose
 numpy

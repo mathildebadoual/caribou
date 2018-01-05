@@ -2,10 +2,9 @@
 
 import numpy as np
 import scipy.linalg
-import quadprog
 import caribou.callback as callback
+import caribou.solvers as solvers
 
-np.random.seed(seed=1)
 callbackplot = callback.CallBackPlot()
 
 class Controller:
@@ -14,12 +13,12 @@ class Controller:
 
 
 class LocalController(Controller):
-    id_generator = 0
 
-    def __init__(self, agentgroup, globalcontroller):
+    def __init__(self, agentgroup, globalcontroller, index):
         super().__init__()
         self.agentgroup = agentgroup
         self.globalcontroller = globalcontroller
+        self.index = index
 
     def generate_random_pv_gen(self):
         raise NotImplementedError
@@ -33,23 +32,21 @@ class LocalController(Controller):
 
 
 class TravaccaEtAl2017LocalController(LocalController):
-    def __init__(self, agentgroup, globalcontroller):
-        super().__init__(agentgroup, globalcontroller)
-        self.identity = LocalController.id_generator
-        LocalController.id_generator += 1
+    def __init__(self, agentgroup, globalcontroller, index):
+        super().__init__(agentgroup, globalcontroller, index)
         self.b = np.genfromtxt('data/travacca_et_al_2017/b.csv', delimiter=',')
         self.e_max = np.genfromtxt(
             'data/travacca_et_al_2017/dam_e_max.csv',
-            delimiter=',')[self.identity]
+            delimiter=',')[self.index]
         self.e_min = np.genfromtxt(
             'data/travacca_et_al_2017/dam_e_min.csv',
-            delimiter=',')[self.identity]
+            delimiter=',')[self.index]
         self.ev_max = np.genfromtxt(
             'data/travacca_et_al_2017/dam_EV_max.csv',
-            delimiter=',')[self.identity]
+            delimiter=',')[self.index]
         self.ev_min = np.genfromtxt(
             'data/travacca_et_al_2017/dam_EV_min.csv',
-            delimiter=',')[self.identity]
+            delimiter=',')[self.index]
         self.aeq = np.reshape(
             np.genfromtxt('data/travacca_et_al_2017/aeq.csv', delimiter=','),
             (1, 48))
@@ -62,52 +59,21 @@ class TravaccaEtAl2017LocalController(LocalController):
             'data/travacca_et_al_2017/hq.csv', delimiter=',')
         self.lbq = np.reshape(
             np.genfromtxt('data/travacca_et_al_2017/lbq.csv',
-                          delimiter=',')[:, self.identity], (48, 1))
-        self.lbq = np.reshape(
-            np.genfromtxt('data/travacca_et_al_2017/lbq.csv',
-                          delimiter=',')[:, self.identity], (48, 1))
+                          delimiter=',')[:, self.index], (48, 1))
         self.ubq = np.reshape(
             np.genfromtxt('data/travacca_et_al_2017/ubq.csv',
-                          delimiter=',')[:, self.identity], (48, 1))
+                          delimiter=',')[:, self.index], (48, 1))
 
     def local_solve(self, globalcontroller_variables):
         mu, nu = globalcontroller_variables
         fq = self.create_fq(mu, nu)
         new_aq = self.create_new_aq()
         new_bq = self.create_new_bq()
-
-        print(self.identity)
-
-        x_result, f_result = self.solve_with_quadprog(
+        x_result, f_result = solvers.with_cvxpy(
             self.hq, fq, new_aq, new_bq, self.aeq, self.beq)[:2]
         self.g_result = x_result[:24]
         self.ev_result = x_result[24:]
         return x_result, f_result
-
-    def solve_with_quadprog(self, h, f, a, b, ae, be):
-        """
-        Solve the following quadratic programm using quadprog:
-
-        minimize
-             (1/2) * x.T * h * x + f.T * x
-
-        subject to
-             a * x <= b
-             ae * x == be
-        """
-        h_qp = h
-        f_qp = -f
-        if ae is not None:
-            a_qp = -np.concatenate((ae, a), axis=0).T
-            b_qp = -np.concatenate((be, b), axis=0)
-            meq = ae.shape[0]
-        else:
-            a_qp = -a.T
-            b_qp = -b
-            meq = 0
-        b_qp = np.reshape(b_qp, (b_qp.shape[0], ))
-        f_qp = np.reshape(f_qp, (f_qp.shape[0], ))
-        return quadprog.solve_qp(h_qp, f_qp, a_qp, b_qp, meq)
 
     def create_fq(self, mu, nu):
         dam_predict_price = self.globalcontroller.predict_dam_price()
@@ -127,7 +93,6 @@ class TravaccaEtAl2017LocalController(LocalController):
     def create_bq(self):
         data_pv_gen = self.generate_random_pv_gen()
         data_dam_load = self.generate_random_load()
-        callbackplot.plot([data_pv_gen, data_dam_load], 'pv_gen and dam_load for each individual')
         return np.reshape(
             np.concatenate(
                 (self.e_max, -self.e_min, data_pv_gen - data_dam_load),
@@ -179,11 +144,13 @@ class TravaccaEtAl2017GlobalController(GlobalController):
         self.c = np.reshape(
             np.genfromtxt('data/travacca_et_al_2017/c.csv', delimiter=','),
             (96, 1))
-        self.cov_dam_price = np.genfromtxt(
-            'data/travacca_et_al_2017/covariance.csv', delimiter=',')
+        self.cov_dam_price = self.load_cov_dam_price()
         self.dam_price = self.load_dam_price()
         self.dam_demand = self.load_dam_demand()
-        callbackplot.plot([self.dam_price, self.dam_demand], 'dam_price and dam_demand')
+
+    def load_cov_dam_price(self):
+        scale_cov = 1000**2
+        return np.genfromtxt('data/travacca_et_al_2017/covariance.csv', delimiter=',') / scale_cov
 
     def load_pv_gen(self):
         start = self.start_day * 4 * 24 + 1
@@ -217,7 +184,7 @@ class TravaccaEtAl2017GlobalController(GlobalController):
                 day + 1), :] = matrix_dam_price + product_matrix
         return dam_predict_price
 
-    def global_solve(self, num_iter=2, gamma=0.00001, alpha=1):
+    def global_solve(self, num_iter=50, gamma=0.00001, alpha=1):
         # TODO(Mathilde): verify if list_localcontroller is set. Or find a way to set it automaticaly
         mu, nu, g_result, ev_result, local_optimum_cost, total_cost = self.initialize_gradient_ascent(
             num_iter)
@@ -227,19 +194,17 @@ class TravaccaEtAl2017GlobalController(GlobalController):
             total_cost[i] = self.compute_total_cost(mu, nu, alpha,
                                                     local_optimum_cost)
             mu = self.update_mu(mu, gamma, ev_result)
-            nu - self.update_nu(nu, gamma, alpha, g_result)
-            print('mu=', mu)
-            print('nu=', nu)
-            callbackplot.plot([np.sum(g_result, axis=1), np.sum(ev_result, axis=1)], 'results of global_solve')
+            nu = self.update_nu(nu, gamma, alpha, g_result)
+        callbackplot.plot([total_cost], 'total_cost_predicted')
 
     def update_mu(self, mu, gamma, ev_result):
-        return max(mu + gamma * self.c + gamma * np.dot(
-            self.b.T, np.reshape(np.sum(ev_result, axis=1), (24, 1))), 0)
+        return np.maximum(mu + gamma * self.c + gamma * np.dot(
+            self.b.T, np.reshape(np.sum(ev_result, axis=1), (24, 1))), np.zeros((96, 1)))
 
     def update_nu(self, nu, gamma, alpha, g_result):
         return nu - gamma * 1 / (2 * alpha) * np.dot(
             np.linalg.inv(self.cov_dam_price), nu) - gamma * np.reshape(
-                np.sum(g_result, axis=1), (24, 1))
+                np.sum(g_result, axis=1).T, (24, 1))
 
     def compute_total_cost(self, mu, nu, alpha, local_optimum_cost):
         return -1 / (4 * alpha) * np.dot(

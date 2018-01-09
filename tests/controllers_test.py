@@ -62,8 +62,9 @@ class TestRunOptimTravaccaEtAl2017LocalController(unittest.TestCase):
     def test_local_solve(self):
         mu = np.zeros((96, 1))
         nu = np.zeros((24, 1))
+        day = 0
         self.assertEqual(
-            self.localcontroller.local_solve((mu, nu))[0].shape, (48, ))
+            self.localcontroller.local_solve((mu, nu, day))[0].shape, (48, ))
 
 
 class TestConstructionGlobalController(unittest.TestCase):

@@ -7,12 +7,13 @@ dist: trusty
 cache: pip
 language: python
 python:
-    - "3.3"
     - "3.4"
     - "3.5"
     - "3.5-dev"
     - "3.6"
     - "3.6-dev"
+
+# TODO: Add the test for python 3.3
 
 # command to install dependencies
 install:

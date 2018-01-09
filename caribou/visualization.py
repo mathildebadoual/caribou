@@ -13,6 +13,7 @@ class Visualize():
             plt.plot(element, label=legend[i])
         plt.legend()
         plt.title(title)
+        plt.grid()
         file_name = '%s.png' % title
         plt.savefig(file_name)
 

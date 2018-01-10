@@ -1,8 +1,10 @@
 """Controllers."""
 
 import numpy as np
-import scipy.linalg
 import caribou.solvers as solvers
+import caribou.datagenerators as datagenerators
+
+HOURS_PER_DAY = 24
 
 
 class LocalController():
@@ -14,9 +16,6 @@ class LocalController():
             self.plot_calback = plot_callback
         self.control_values = 0
 
-    def generate_random_pv_gen(self):
-        raise NotImplementedError
-
     def run_local_optim(self, globalcontroller_variables):
         x_result, f_result = self.local_solve(globalcontroller_variables)
         self.control_values = x_result
@@ -26,7 +25,7 @@ class LocalController():
         raise NotImplementedError
 
     def receive_signal_stop_optimization(self, message=False):
-        if message == True:
+        if message is True:
             self.run_simulation()
 
     def run_simulation(self):
@@ -34,92 +33,89 @@ class LocalController():
 
 
 class TravaccaEtAl2017LocalController(LocalController):
-    def __init__(self, agentgroup, globalcontroller, plot_callback=None):
+    def __init__(self,
+                 agentgroup,
+                 globalcontroller,
+                 data_generator,
+                 plot_callback=None):
         super().__init__(
             agentgroup, globalcontroller, plot_callback=plot_callback)
-        self.b = np.genfromtxt('data/travacca_et_al_2017/b.csv', delimiter=',')
-        self.e_max = np.genfromtxt(
-            'data/travacca_et_al_2017/dam_e_max.csv',
-            delimiter=',')[self.group_id]
-        self.e_min = np.genfromtxt(
-            'data/travacca_et_al_2017/dam_e_min.csv',
-            delimiter=',')[self.group_id]
-        self.ev_max = np.genfromtxt(
-            'data/travacca_et_al_2017/dam_EV_max.csv',
-            delimiter=',')[self.group_id]
-        self.ev_min = np.genfromtxt(
-            'data/travacca_et_al_2017/dam_EV_min.csv',
-            delimiter=',')[self.group_id]
 
-        #TODO(Mathilde): Create those matrices and not import them (not flexible)
+        self.data_generator = data_generator
+        self.accuracy_prediction = 0.01
+        self.max_local_power = 10
 
-        self.aeq = np.reshape(
-            np.genfromtxt('data/travacca_et_al_2017/aeq.csv', delimiter=','),
-            (1, 48))
-        self.aq = np.genfromtxt(
-            'data/travacca_et_al_2017/aq.csv', delimiter=',')
-        self.beq = np.reshape(
-            np.genfromtxt('data/travacca_et_al_2017/beq.csv', delimiter=','),
-            (1, 1))
-        self.hq = np.genfromtxt(
-            'data/travacca_et_al_2017/hq.csv', delimiter=',')
-        self.lbq = np.reshape(
-            np.genfromtxt('data/travacca_et_al_2017/lbq.csv',
-                          delimiter=',')[:, self.group_id], (48, 1))
-        self.ubq = np.reshape(
-            np.genfromtxt('data/travacca_et_al_2017/ubq.csv',
-                          delimiter=',')[:, self.group_id], (48, 1))
+        self.e_max = self.data_generator.load_individual_e_max(self.group_id)
+        self.e_min = self.data_generator.load_individual_e_min(self.group_id)
+        self.ev_max = self.data_generator.load_individual_ev_max(self.group_id)
+        self.ev_min = self.data_generator.load_individual_ev_min(self.group_id)
+
+    def update_matrices_local_quadr_opt(self, day):
+        self.individual_dam_price_predicted = self.data_generator.load_individual_dam_price_predicted(
+            day)
+        self.individual_pv_gen_predicted = self.data_generator.generate_random_individual_pv_gen(
+            day)
+        self.individual_load_predicted = self.data_generator.generate_random_individual_load(
+            day)
+        self.aeq = np.zeros((1, 2 * HOURS_PER_DAY))
+        self.beq = np.array([[0]])
+        self.aq = self.create_aq()
+        self.hq = self.accuracy_prediction * np.eye(2 * HOURS_PER_DAY)
+        self.lbq = self.create_lbq()
+        self.ubq = self.create_ubq()
+        self.bq = self.create_bq()
+
+    def create_ubq(self):
+        return np.concatenate(
+            (self.max_local_power * np.ones(
+                (HOURS_PER_DAY, 1)), self.ev_max.T),
+            axis=0)
+
+    def create_lbq(self):
+        return np.concatenate(
+            (-self.max_local_power * np.ones(
+                (HOURS_PER_DAY, 1)), self.ev_min.T),
+            axis=0)
+
+    def create_aq(self):
+        a = np.tril(np.ones((HOURS_PER_DAY, HOURS_PER_DAY)))
+        matrix_a = np.concatenate(
+            (np.zeros(
+                (2 * HOURS_PER_DAY, HOURS_PER_DAY)), -np.eye(HOURS_PER_DAY)),
+            axis=0)
+        matrix_b = np.concatenate((a, -a, np.eye(HOURS_PER_DAY)), axis=0)
+        matrix_ab = np.concatenate((matrix_a, matrix_b), axis=1)
+        return np.concatenate(
+            (matrix_ab, np.eye(2 * HOURS_PER_DAY), -np.eye(2 * HOURS_PER_DAY)),
+            axis=0)
+
+    def create_bq(self):
+        bq = np.reshape(
+            np.concatenate(
+                (self.e_max.T, - self.e_min.T, self.individual_pv_gen_predicted -
+                 self.individual_load_predicted),
+                axis=0), (-1, 1))
+        return np.concatenate((bq, self.ubq, -self.lbq), axis=0)
+
+    def update_fq(self, mu, nu, day):
+        a = np.tril(np.ones((HOURS_PER_DAY, HOURS_PER_DAY)))
+        b = np.concatenate(
+            (-a.T, a.T, -np.eye(HOURS_PER_DAY), np.eye(HOURS_PER_DAY)), axis=0)
+        return np.concatenate(
+            (self.individual_dam_price_predicted - nu, np.dot(b.T, mu)), axis=0)
 
     def local_solve(self, globalcontroller_variables):
         mu, nu, day = globalcontroller_variables
-        fq = self.create_fq(mu, nu, day)
-        new_aq = self.create_new_aq()
-        new_bq = self.create_new_bq()
-        x_result, f_result = solvers.with_cvxpy(self.hq, fq, new_aq, new_bq,
-                                                self.aeq, self.beq)[:2]
+        self.update_matrices_local_quadr_opt(day)
+        fq = self.update_fq(mu, nu, day)
+        x_result, f_result = solvers.with_cvxpy(self.hq, fq, self.aq, self.bq,
+                                                self.aeq, self.beq)
         return x_result, f_result
-
-    def create_fq(self, mu, nu, day):
-        dam_predict_price = self.globalcontroller.dam_predict_price[day * 24:(day + 1)*24]
-        return np.concatenate(
-            (dam_predict_price - nu, np.dot(self.b, mu)), axis=0)
-
-#TODO(Mathilde): The two generate functions should be in the mc generator
-
-
-    def generate_random_pv_gen(self):
-        data_pv_gen = self.globalcontroller.pv_gen
-        return data_pv_gen + data_pv_gen * (
-            np.random.rand(self.globalcontroller.time_horizon * 24) - 0.5)
-
-    def generate_random_load(self):
-        data_dam_demand = self.globalcontroller.dam_demand
-        return data_dam_demand + data_dam_demand * (
-            np.random.rand(self.globalcontroller.time_horizon * 24) - 0.5)
-
-    def create_bq(self):
-        data_pv_gen = self.generate_random_pv_gen()
-        data_dam_load = self.generate_random_load()
-        return np.reshape(
-            np.concatenate(
-                (self.e_max, -self.e_min, data_pv_gen - data_dam_load),
-                axis=0), (72, 1))
-
-    def create_new_aq(self):
-        return np.concatenate((self.aq, np.eye(48), -np.eye(48)), axis=0)
-
-    def create_new_bq(self):
-        bq = self.create_bq()
-        return np.concatenate((bq, self.ubq, -self.lbq), axis=0)
 
     def run_simulation(self):
         x_result = self.control_values
-        g_result = x_result[:24]
-        ev_result = x_result[24:]
-        print('ok')
-
-
-# TODO(Mathilde): Create a new module for Global Controller?
+        g_result = x_result[:HOURS_PER_DAY]
+        ev_result = x_result[HOURS_PER_DAY:]
 
 
 class GlobalController():
@@ -151,67 +147,28 @@ class TravaccaEtAl2017GlobalController(GlobalController):
     def __init__(self, start_day=32, time_horizon=1,
                  plot_callback=None):  # time_horizon in days
         super().__init__(plot_callback=plot_callback)
-        self.start_day = start_day
-        self.time_horizon = time_horizon
-        self.data_main = np.genfromtxt(
-            'data/travacca_et_al_2017/main.csv', delimiter=',')
-        self.pv_gen = self.load_pv_gen()
-        self.b = np.genfromtxt('data/travacca_et_al_2017/b.csv', delimiter=',')
-        self.e_max_agg = np.genfromtxt(
-            'data/travacca_et_al_2017/dam_e_max_agg.csv', delimiter=',')
-        self.e_min_agg = np.genfromtxt(
-            'data/travacca_et_al_2017/dam_e_min_agg.csv', delimiter=',')
-        self.ev_max_agg = np.genfromtxt(
-            'data/travacca_et_al_2017/dam_EV_max_agg.csv', delimiter=',')
-        self.ev_min_agg = np.genfromtxt(
-            'data/travacca_et_al_2017/dam_EV_min_agg.csv', delimiter=',')
-        self.c = np.reshape(
-            np.genfromtxt('data/travacca_et_al_2017/c.csv', delimiter=','),
-            (96, 1))
-        self.cov_dam_price = self.load_cov_dam_price()
-        self.dam_price = self.load_dam_price()
-        self.dam_demand = self.load_dam_demand()
-        self.dam_predict_price = self.predict_dam_price()
+        self.data_generator = datagenerators.TravaccaEtAl2017DataGenerator(
+            start_day, time_horizon)
+        self.c = self.create_c()
+        self.b = self.create_b()
 
-    def load_cov_dam_price(self):
-        scale_cov = 1000**2
-        return np.genfromtxt(
-            'data/travacca_et_al_2017/covariance.csv',
-            delimiter=',') / scale_cov
+    def get_data_generator(self):
+        return self.data_generator
 
-    def load_pv_gen(self):
-        start = self.start_day * 4 * 24 + 1
-        stop = self.start_day * 4 * 24 + self.time_horizon * 24 * 4
-        scale_pv = 10
-        return self.data_main[start:stop:4, 16] / scale_pv
+    def create_c(self):
+        return np.reshape(np.concatenate(
+            [
+                self.data_generator.e_min_agg, -self.data_generator.e_max_agg,
+                self.data_generator.ev_min_agg, -self.data_generator.ev_max_agg
+            ],
+            axis=0).T, (-1, 1))
 
-    def load_dam_price(self):
-        start = self.start_day * 4 * 24 + 1
-        stop = self.start_day * 4 * 24 + self.time_horizon * 24 * 4
-        scale_price = 1000
-        return self.data_main[start:stop:4, 10] / scale_price
-
-    def load_dam_demand(self):
-        start = self.start_day * 4 * 24 + 1
-        stop = self.start_day * 4 * 24 + self.time_horizon * 24 * 4
-        scale_load = 10000
-        return self.data_main[start:stop:4, 9] / scale_load
-
-    def predict_dam_price(self):
-        dam_predict_price = np.zeros((24 * self.time_horizon, 1))
-        for day in range(self.time_horizon):
-            product_matrix = np.reshape(
-                np.dot(
-                    scipy.linalg.sqrtm(self.cov_dam_price),
-                    np.random.multivariate_normal(
-                        np.zeros((24, )), np.eye(24))), (24, 1))
-            matrix_dam_price = np.reshape(
-                    self.dam_price[24 * day:24 * (day + 1)], (24, 1))
-            dam_predict_price[24 * day:24 * (day + 1)] = matrix_dam_price + product_matrix
-        return dam_predict_price
+    def create_b(self):
+        a = np.tril(np.ones((HOURS_PER_DAY, HOURS_PER_DAY)))
+        return np.concatenate(
+            (-a.T, a.T, -np.eye(HOURS_PER_DAY), np.eye(HOURS_PER_DAY)), axis=0)
 
     def global_solve(self, num_iter=50, gamma=0.00001, alpha=1):
-        # TODO(Mathilde): verify if list_localcontroller is set. Or find a way to set it automaticaly
         mu, nu, g_result, ev_result, local_optimum_cost, total_cost = self.initialize_gradient_ascent(
             num_iter)
         for i in range(num_iter):
@@ -221,9 +178,14 @@ class TravaccaEtAl2017GlobalController(GlobalController):
                                                     local_optimum_cost)
             mu = self.update_mu(mu, gamma, ev_result)
             nu = self.update_nu(nu, gamma, alpha, g_result)
-        self.plot_callback([np.sum(g_result, axis=1) , np.sum(ev_result, axis=1)],
-                           'final load from grid and ev consumption',
-                           ['g_result', 'ev_result'])
+        self.plot_results(g_result, ev_result, total_cost)
+
+    def plot_results(self, g_result, ev_result, total_cost):
+        self.plot_callback(
+            [np.sum(g_result, axis=1),
+             np.sum(ev_result, axis=1)],
+            'final load from grid and ev consumption',
+            ['g_result', 'ev_result'])
         self.plot_callback([total_cost], 'total_cost_predicted',
                            ['total cost'])
         self.plot_callback([self.dam_price, self.dam_demand],
@@ -233,24 +195,25 @@ class TravaccaEtAl2017GlobalController(GlobalController):
 
     def update_mu(self, mu, gamma, ev_result):
         return np.maximum(mu + gamma * self.c + gamma * np.dot(
-            self.b.T, np.reshape(np.sum(ev_result, axis=1), (24, 1))),
-                          np.zeros((96, 1)))
+            self.b, np.reshape(np.sum(ev_result, axis=1), (-1, 1))),
+                          np.zeros((4 * HOURS_PER_DAY, 1)))
 
     def update_nu(self, nu, gamma, alpha, g_result):
         return nu - gamma * 1 / (2 * alpha) * np.dot(
-            np.linalg.inv(self.cov_dam_price), nu) - gamma * np.reshape(
-                np.sum(g_result, axis=1).T, (24, 1))
+            np.linalg.inv(self.data_generator.cov_dam_price),
+            nu) - gamma * np.reshape(np.sum(g_result, axis=1).T, (-1, 1))
 
     def compute_total_cost(self, mu, nu, alpha, local_optimum_cost):
         return -1 / (4 * alpha) * np.dot(
-            nu.T, np.dot(np.linalg.inv(self.cov_dam_price), nu)) + np.dot(
-                self.c.T, mu) + np.sum(local_optimum_cost)
+            nu.T, np.dot(np.linalg.inv(self.data_generator.cov_dam_price), nu
+                         )) + np.dot(self.c.T, mu) + np.sum(local_optimum_cost)
 
     def initialize_gradient_ascent(self, num_iter):
         size = len(self.list_localcontrollers)
-        return np.zeros((96, 1)), np.zeros((24, 1)), np.zeros(
-            (24, size)), np.zeros((24, size)), np.zeros((size, 1)), np.zeros(
-                (num_iter, 1))
+        return np.zeros((HOURS_PER_DAY * 4, 1)), np.zeros(
+            (HOURS_PER_DAY, 1)), np.zeros((HOURS_PER_DAY, size)), np.zeros(
+                (HOURS_PER_DAY, size)), np.zeros((size, 1)), np.zeros(
+                    (num_iter, 1))
 
     def next_step_gradient_ascent(self, mu, nu, g_result, ev_result,
                                   local_optimum_cost):
@@ -258,7 +221,7 @@ class TravaccaEtAl2017GlobalController(GlobalController):
         for i, localcontroller in enumerate(self.list_localcontrollers):
             x_result, f_result = localcontroller.run_local_optim(
                 globalcontroller_variables)
-            g_result[:, i] = x_result[:24]
-            ev_result[:, i] = x_result[24:]
+            g_result[:, i] = x_result[:HOURS_PER_DAY]
+            ev_result[:, i] = x_result[HOURS_PER_DAY:]
             local_optimum_cost[i, 0] = f_result
         return g_result, ev_result, local_optimum_cost

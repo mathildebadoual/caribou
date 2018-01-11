@@ -70,7 +70,7 @@ class TestLoadDataTravaccaEtAl2017GlobalController(unittest.TestCase):
         self.assertEqual(self.globalcontroller.c.shape, (4 * HOURS_PER_DAY, 1))
 
     def test_create_b(self):
-        self.assertEqual(self.globalcontroller.b.shape, (4 * HOURS_PER_DAY, HOURS_PER_DAY))
+        self.assertEqual(self.globalcontroller.b.shape, (HOURS_PER_DAY, 4 * HOURS_PER_DAY))
 
 
 class TestRunGradientAscentTravaccaEtAl2017GlobaController(unittest.TestCase):

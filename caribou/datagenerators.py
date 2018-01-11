@@ -36,7 +36,7 @@ class TravaccaEtAl2017DataGenerator(DataGenerator):
         self.cov_dam_price = self.load_cov_dam_price()
         self.dam_price = self.load_dam_price()
         self.dam_demand = self.load_dam_demand()
-        self.dam_predict_price = self.predict_dam_price()
+        self.dam_predict_price = self.load_predict_dam_price()
         self.e_max = np.genfromtxt(
             'data/travacca_et_al_2017/dam_e_max.csv', delimiter=',')
         self.e_min = np.genfromtxt(
@@ -45,7 +45,9 @@ class TravaccaEtAl2017DataGenerator(DataGenerator):
             'data/travacca_et_al_2017/dam_EV_max.csv', delimiter=',')
         self.ev_min = np.genfromtxt(
             'data/travacca_et_al_2017/dam_EV_min.csv', delimiter=',')
-        self.dam_price_predicted = self.predict_dam_price()
+        self.dam_price_predicted = self.load_predict_dam_price()
+        np.savetxt('pv_gen_ind.csv', self.generate_random_individual_pv_gen(0), delimiter=',')
+        np.savetxt('load_ind.csv', self.generate_random_individual_load(0), delimiter=',')
 
     def load_pv_gen(self):
         start = self.start_day * VALUES_PER_DAY + 1
@@ -65,7 +67,7 @@ class TravaccaEtAl2017DataGenerator(DataGenerator):
             0.5 + np.random.rand(self.time_horizon * HOURS_PER_DAY)), (-1, 1))
 
     def load_cov_dam_price(self):
-        scale_cov = 1000**2
+        scale_cov = 1000 ** 2
         return np.genfromtxt(
             'data/travacca_et_al_2017/covariance.csv',
             delimiter=',') / scale_cov
@@ -85,7 +87,7 @@ class TravaccaEtAl2017DataGenerator(DataGenerator):
 
 # TODO(Mathilde): Maybe have another module for prediction later
 
-    def predict_dam_price(self):
+    def load_predict_dam_price(self):
         dam_predict_price = np.zeros((HOURS_PER_DAY * self.time_horizon, 1))
         for day in range(self.time_horizon):
             product_matrix = np.reshape(
@@ -93,10 +95,10 @@ class TravaccaEtAl2017DataGenerator(DataGenerator):
                     scipy.linalg.sqrtm(self.cov_dam_price),
                     np.random.multivariate_normal(
                         np.zeros((HOURS_PER_DAY, )), np.eye(HOURS_PER_DAY))),
-                (HOURS_PER_DAY, 1))
+                (-1, 1))
             matrix_dam_price = np.reshape(
                 self.dam_price[HOURS_PER_DAY * day:HOURS_PER_DAY * (day + 1)],
-                (HOURS_PER_DAY, 1))
+                (-1, 1))
             dam_predict_price[HOURS_PER_DAY * day:HOURS_PER_DAY * (
                 day + 1)] = matrix_dam_price + product_matrix
         return dam_predict_price
@@ -114,5 +116,5 @@ class TravaccaEtAl2017DataGenerator(DataGenerator):
         return np.reshape(self.ev_min[group_id, :], (1, HOURS_PER_DAY))
 
     def load_individual_dam_price_predicted(self, day):
-        return np.reshape(self.predict_dam_price()[day * HOURS_PER_DAY:(
+        return np.reshape(self.load_predict_dam_price()[day * HOURS_PER_DAY:(
             24 + 1) * HOURS_PER_DAY], (-1, 1))

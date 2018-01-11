@@ -12,6 +12,7 @@ list_houses = []
 list_localcontrollers = []
 globalcontroller = controllers.TravaccaEtAl2017GlobalController(
     start_day=32, plot_callback=visualize.callback)
+data_generator = globalcontroller.get_data_generator()
 
 for i in range(100):
     group_id = i
@@ -21,7 +22,7 @@ for i in range(100):
     house.add(agents.PV(2 * i))
 
     localcontroller = controllers.TravaccaEtAl2017LocalController(
-        house, globalcontroller, plot_callback=visualize.callback)
+        house, globalcontroller, data_generator, plot_callback=visualize.callback)
     list_localcontrollers.append(localcontroller)
 
 globalcontroller.set_list_localcontrollers(list_localcontrollers)

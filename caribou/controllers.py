@@ -42,7 +42,7 @@ class TravaccaEtAl2017LocalController(LocalController):
             agentgroup, globalcontroller, plot_callback=plot_callback)
 
         self.data_generator = data_generator
-        self.accuracy_prediction = 0.01
+        self.delta = 0.005
         self.max_local_power = 10
 
         self.e_max = self.data_generator.load_individual_e_max(self.group_id)
@@ -60,7 +60,7 @@ class TravaccaEtAl2017LocalController(LocalController):
         self.aeq = np.zeros((1, 2 * HOURS_PER_DAY))
         self.beq = np.array([[0]])
         self.aq = self.create_aq()
-        self.hq = self.accuracy_prediction * np.eye(2 * HOURS_PER_DAY)
+        self.hq = self.delta * np.eye(2 * HOURS_PER_DAY)
         self.lbq = self.create_lbq()
         self.ubq = self.create_ubq()
         self.bq = self.create_bq()
@@ -100,9 +100,9 @@ class TravaccaEtAl2017LocalController(LocalController):
     def update_fq(self, mu, nu, day):
         a = np.tril(np.ones((HOURS_PER_DAY, HOURS_PER_DAY)))
         b = np.concatenate(
-            (-a.T, a.T, -np.eye(HOURS_PER_DAY), np.eye(HOURS_PER_DAY)), axis=0)
+            (-a.T, a.T, -np.eye(HOURS_PER_DAY), np.eye(HOURS_PER_DAY)), axis=1)
         return np.concatenate(
-            (self.individual_dam_price_predicted - nu, np.dot(b.T, mu)), axis=0)
+            (self.individual_dam_price_predicted - nu, np.dot(b, mu)), axis=0)
 
     def local_solve(self, globalcontroller_variables):
         mu, nu, day = globalcontroller_variables
@@ -116,6 +116,7 @@ class TravaccaEtAl2017LocalController(LocalController):
         x_result = self.control_values
         g_result = x_result[:HOURS_PER_DAY]
         ev_result = x_result[HOURS_PER_DAY:]
+        print('ok')
 
 
 class GlobalController():
@@ -166,19 +167,35 @@ class TravaccaEtAl2017GlobalController(GlobalController):
     def create_b(self):
         a = np.tril(np.ones((HOURS_PER_DAY, HOURS_PER_DAY)))
         return np.concatenate(
-            (-a.T, a.T, -np.eye(HOURS_PER_DAY), np.eye(HOURS_PER_DAY)), axis=0)
+            (-a.T, a.T, -np.eye(HOURS_PER_DAY), np.eye(HOURS_PER_DAY)), axis=1)
 
-    def global_solve(self, num_iter=50, gamma=0.00001, alpha=1):
+    def global_solve(self, num_iter=100, gamma=0.00001, alpha=1):
         mu, nu, g_result, ev_result, local_optimum_cost, total_cost = self.initialize_gradient_ascent(
             num_iter)
-        for i in range(num_iter):
+        i = 0
+        delta_total_cost = 100
+        previous_total_cost = 0
+        while self.convergence_criteria(i, num_iter, delta_total_cost) is False:
             g_result, ev_result, local_optimum_cost = self.next_step_gradient_ascent(
                 mu, nu, g_result, ev_result, local_optimum_cost)
             total_cost[i] = self.compute_total_cost(mu, nu, alpha,
                                                     local_optimum_cost)
             mu = self.update_mu(mu, gamma, ev_result)
             nu = self.update_nu(nu, gamma, alpha, g_result)
+            print(mu, nu)
+            delta_total_cost = total_cost[i] - previous_total_cost
+            i += 1
         self.plot_results(g_result, ev_result, total_cost)
+        self.give_signal_stop_optimization(message=True)
+
+    def convergence_criteria(self, i, num_iter, delta_total_cost):
+        if delta_total_cost <= 1:
+            print('converged')
+            return True
+        if i == num_iter:
+            print('max iteration reached')
+            return True
+        return False
 
     def plot_results(self, g_result, ev_result, total_cost):
         self.plot_callback(
@@ -188,14 +205,17 @@ class TravaccaEtAl2017GlobalController(GlobalController):
             ['g_result', 'ev_result'])
         self.plot_callback([total_cost], 'total_cost_predicted',
                            ['total cost'])
-        self.plot_callback([self.dam_price, self.dam_demand],
+        self.plot_callback([self.data_generator.dam_price, self.data_generator.dam_demand],
                            'DAM prices and energy demand',
                            ['dam_price', 'dam_demand'])
-        self.give_signal_stop_optimization(message=True)
+        self.plot_callback([self.data_generator.dam_predict_price, self.data_generator.dam_price],
+                           'DAM prices predicted and real',
+                           ['dam_predict_price', 'dam_price'])
+
 
     def update_mu(self, mu, gamma, ev_result):
         return np.maximum(mu + gamma * self.c + gamma * np.dot(
-            self.b, np.reshape(np.sum(ev_result, axis=1), (-1, 1))),
+            self.b.T, np.reshape(np.sum(ev_result, axis=1), (-1, 1))),
                           np.zeros((4 * HOURS_PER_DAY, 1)))
 
     def update_nu(self, nu, gamma, alpha, g_result):

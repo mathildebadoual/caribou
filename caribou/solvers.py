@@ -50,6 +50,5 @@ def with_cvxpy(h, f, a, b, ae, be):
         constraints.append(ae * x == be)
     prob = cvxpy.Problem(objective, constraints)
     y_result = prob.solve()
-    print(np.array(x.value))
     x_result = np.reshape(np.array(x.value), (-1,))
     return x_result, y_result

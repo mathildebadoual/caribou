@@ -134,7 +134,7 @@ class TestRunGradientAscentTravaccaEtAl2017GlobaController(unittest.TestCase):
 
     def test_global_solve(self):
         self.globalcontroller.run_global_optim()
-        self.assertEqual(self.globalcontroller.status, 'converged')
+        self.assertEqual(self.globalcontroller.status, 'converge')
 
 
 if __name__ == '__main__':

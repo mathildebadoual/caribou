@@ -3,16 +3,18 @@
 import numpy as np
 import caribou.solvers as solvers
 import caribou.datagenerators as datagenerators
+import caribou.eventhandlers as eventhandlers
 
 HOURS_PER_DAY = 24
 
 class LocalController():
-    def __init__(self, agentgroup, globalcontroller, plot_callback=None):
+    def __init__(self, agentgroup, globalcontroller, data_generator, plot_callback=None):
         self.agentgroup = agentgroup
         self.globalcontroller = globalcontroller
+        self.data_ganerator = data_generator
         self.group_id = self.agentgroup.get_group_id()
-        if plot_callback is not None:
-            self.plot_calback = plot_callback
+        self.eventhandler = eventhandlers.EventHandler(self.agentgroup, data_generator, plot_callback=plot_callback)
+        self.plot_callback = plot_callback
         self.control_values = 0
 
     def run_local_optim(self, globalcontroller_variables, solver=None):
@@ -27,27 +29,23 @@ class LocalController():
     def local_solve(self, globalcontroller_variables):
         raise NotImplementedError
 
-    def receive_signal_stop_optimization(self, message=False):
+    def receive_signal_run_simulation(self, message=False):
         if message is True:
             self.run_simulation()
 
     def run_simulation(self):
-        raise NotImplementedError
+        self.eventhandler.create_strategy(self.control_values)
 
 
 class TravaccaEtAl2017LocalController(LocalController):
     def __init__(self,
                  agentgroup,
                  globalcontroller,
-                 data_generator,
                  plot_callback=None):
         super().__init__(
-            agentgroup, globalcontroller, plot_callback=plot_callback)
-
-        self.data_generator = data_generator
+            agentgroup, globalcontroller, data_generator, plot_callback=plot_callback)
         self.delta = 0.01
         self.max_local_power = 10
-
         self.e_max = self.data_generator.load_individual_e_max(self.group_id)
         self.e_min = self.data_generator.load_individual_e_min(self.group_id)
         self.ev_max = self.data_generator.load_individual_ev_max(self.group_id)
@@ -115,10 +113,6 @@ class TravaccaEtAl2017LocalController(LocalController):
                                                 self.aeq, self.beq, solver=solver)
         return x_result, f_result
 
-    def run_simulation(self):
-        x_result = self.control_values
-        g_result = x_result[:HOURS_PER_DAY]
-        ev_result = x_result[HOURS_PER_DAY:]
 
 class GlobalController():
     def __init__(self, plot_callback=None):
@@ -139,9 +133,9 @@ class GlobalController():
     def global_solve(self):
         raise NotImplementedError
 
-    def give_signal_stop_optimization(self, message=False):
+    def give_signal_run_simulation(self, message=False):
         for localcontroller in self.list_localcontrollers:
-            localcontroller.receive_signal_stop_optimization(message=message)
+            localcontroller.receive_signal_run_simulation(message=message)
         self.day += 1
 
 
@@ -196,7 +190,7 @@ class TravaccaEtAl2017GlobalController(GlobalController):
             i += 1
         print(self.status)
         self.plot_results(g_result, ev_result, total_cost)
-        self.give_signal_stop_optimization(message=True)
+        self.give_signal_run_simu(message=True)
 
     def convergence_criteria(self, i, num_iter, delta_total_cost):
         if abs(delta_total_cost) <= 0.01:

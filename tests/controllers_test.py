@@ -76,13 +76,17 @@ class TestLoadDataTravaccaEtAl2017GlobalController(unittest.TestCase):
 class TestRunGradientAscentTravaccaEtAl2017GlobaController(unittest.TestCase):
     def setUp(self):
         self.globalcontroller = controllers.TravaccaEtAl2017GlobalController()
-        self.house = agentgroups.ResidentialBuilding(0)
-        data_generator = self.globalcontroller.get_data_generator()
-        self.localcontroller = controllers.TravaccaEtAl2017LocalController(
-            self.house, self.globalcontroller, data_generator)
-        self.globalcontroller.set_list_localcontrollers([self.localcontroller])
+        self.data_generator = self.globalcontroller.get_data_generator()
+        self.list_localcontrollers = []
+        for i in range(10):
+            group_id = i
+            house = agentgroups.ResidentialBuilding(group_id)
+            localcontroller = controllers.TravaccaEtAl2017LocalController(house, self.globalcontroller, self.data_generator)
+            self.list_localcontrollers.append(localcontroller)
+        self.globalcontroller.set_list_localcontrollers(self.list_localcontrollers)
 
     def test_initialize_gradient_ascent(self):
+        size = len(self.list_localcontrollers)
         self.assertEqual(
             self.globalcontroller.initialize_gradient_ascent(10)[0].shape,
             (4 * HOURS_PER_DAY, 1))
@@ -91,16 +95,13 @@ class TestRunGradientAscentTravaccaEtAl2017GlobaController(unittest.TestCase):
             (HOURS_PER_DAY, 1))
         self.assertEqual(
             self.globalcontroller.initialize_gradient_ascent(10)[2].shape,
-            (HOURS_PER_DAY, 1))
+            (HOURS_PER_DAY, size))
         self.assertEqual(
             self.globalcontroller.initialize_gradient_ascent(10)[3].shape,
-            (HOURS_PER_DAY, 1))
+            (HOURS_PER_DAY, size))
         self.assertEqual(
             self.globalcontroller.initialize_gradient_ascent(10)[4].shape,
-            (1, 1))
-        self.assertEqual(
-            self.globalcontroller.initialize_gradient_ascent(10)[5].shape,
-            (10, 1))
+            (size, 1))
 
     def test_compute_total_cost(self):
         mu = np.zeros((96, 1))
@@ -131,11 +132,9 @@ class TestRunGradientAscentTravaccaEtAl2017GlobaController(unittest.TestCase):
             self.globalcontroller.update_nu(nu, gamma, alpha, g_result).shape,
             (HOURS_PER_DAY, 1))
 
-    def test_next_step_gradient_ascent(self):
-        pass
-
     def test_global_solve(self):
-        pass
+        self.globalcontroller.run_global_optim()
+        self.assertEqual(self.globalcontroller.status, 'converged')
 
 
 if __name__ == '__main__':

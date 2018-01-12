@@ -123,8 +123,8 @@ class TravaccaEtAl2017LocalController(LocalController):
 class GlobalController():
     def __init__(self, plot_callback=None):
         self.list_localcontrollers = []
-        if plot_callback is not None:
-            self.plot_callback = plot_callback
+        self.plot_callback = plot_callback
+
         self.day = 0
 
     def set_list_localcontrollers(self, list_localcontrollers):
@@ -177,7 +177,7 @@ class TravaccaEtAl2017GlobalController(GlobalController):
         return np.concatenate(
             (-a.T, a.T, -np.eye(HOURS_PER_DAY), np.eye(HOURS_PER_DAY)), axis=1)
 
-    def global_solve(self, num_iter=50, gamma=0.00001, alpha=1):
+    def global_solve(self, num_iter=100, gamma=0.00001, alpha=1):
         mu, nu, g_result, ev_result, local_optimum_cost, total_cost = self.initialize_gradient_ascent(
             num_iter)
         i = 0
@@ -197,8 +197,8 @@ class TravaccaEtAl2017GlobalController(GlobalController):
         self.give_signal_stop_optimization(message=True)
 
     def convergence_criteria(self, i, num_iter, delta_total_cost):
-        if delta_total_cost <= 1:
-            print('converged')
+        if delta_total_cost <= 30:
+            self.status = 'converged'
             return True
         if i == num_iter:
             self.status = 'max iteration reached'
@@ -206,20 +206,21 @@ class TravaccaEtAl2017GlobalController(GlobalController):
         return False
 
     def plot_results(self, g_result, ev_result, total_cost):
-        self.plot_callback(
-            [np.sum(g_result, axis=1),
-             np.sum(ev_result, axis=1)],
-            'final load from grid and ev consumption',
-            ['g_result', 'ev_result'])
-        self.plot_callback([total_cost], 'total_cost_predicted',
-                           ['total cost'])
-        self.plot_callback(
-            [self.data_generator.dam_price, self.data_generator.dam_demand],
-            'DAM prices and energy demand', ['dam_price', 'dam_demand'])
-        self.plot_callback([
-            self.data_generator.dam_predict_price,
-            self.data_generator.dam_price
-        ], 'DAM prices predicted and real', ['dam_predict_price', 'dam_price'])
+        if self.plot_callback is not None:
+            self.plot_callback(
+                    [np.sum(g_result, axis=1),
+                        np.sum(ev_result, axis=1)],
+                    'final load from grid and ev consumption',
+                    ['g_result', 'ev_result'])
+            self.plot_callback([total_cost], 'total_cost_predicted',
+                    ['total cost'])
+            self.plot_callback(
+                    [self.data_generator.dam_price, self.data_generator.dam_demand],
+                    'DAM prices and energy demand', ['dam_price', 'dam_demand'])
+            self.plot_callback([
+                self.data_generator.dam_predict_price,
+                self.data_generator.dam_price
+                ], 'DAM prices predicted and real', ['dam_predict_price', 'dam_price'])
 
     def update_mu(self, mu, gamma, ev_result):
         return np.maximum(mu + gamma * self.c + gamma * np.dot(

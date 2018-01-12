@@ -3,7 +3,7 @@
 import numpy as np
 import scipy.linalg
 
-
+# TODO(Mathilde): create variables in the datagenerator or global controller ?
 PV_GEN_COLUMN = 16
 HOURS_PER_DAY = 24
 VALUES_PER_DAY = HOURS_PER_DAY * 4

@@ -27,7 +27,7 @@ for i in range(100):
 
 globalcontroller.set_list_localcontrollers(list_localcontrollers)
 
-globalcontroller.set_local_solver('ECOS')
+globalcontroller.set_local_solver('CVXOPT')
 globalcontroller.run_global_optim()
 
 visualize.plot_all()

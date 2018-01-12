@@ -1,26 +1,17 @@
-
 class Event():
     def __init__(self, agent):
         self.agent = agent
-
-    def run_next_step(self):
-        self.run_step()
-        self.current_time_step += 1
-
-    def run_step(self):
-        raise NotImplementedError
 
 
 class EVevent(Event):
     def __init__(self, agent):
         super().__init__(agent)
 
-
-class EVCharging(EVevent): # can inherit from Event
-    def __init__(self, agent):
-        super().__init__(agent)
+    def set_next_event(self, energy_in=0, energy_out=0):
+        if status
 
 
 class PVevent(Event):
     def __init__(self, agent):
         super().__init__(agent)
+        pass

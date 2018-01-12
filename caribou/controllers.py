@@ -177,7 +177,7 @@ class TravaccaEtAl2017GlobalController(GlobalController):
         return np.concatenate(
             (-a.T, a.T, -np.eye(HOURS_PER_DAY), np.eye(HOURS_PER_DAY)), axis=1)
 
-    def global_solve(self, num_iter=100, gamma=0.00001, alpha=1):
+    def global_solve(self, num_iter=50, gamma=0.00001, alpha=1):
         mu, nu, g_result, ev_result, local_optimum_cost, total_cost = self.initialize_gradient_ascent(
             num_iter)
         i = 0
@@ -191,13 +191,15 @@ class TravaccaEtAl2017GlobalController(GlobalController):
             mu = self.update_mu(mu, gamma, ev_result)
             nu = self.update_nu(nu, gamma, alpha, g_result)
             delta_total_cost = total_cost[i] - previous_total_cost
+            print(delta_total_cost)
+            previous_total_cost = total_cost[i]
             i += 1
         print(self.status)
         self.plot_results(g_result, ev_result, total_cost)
         self.give_signal_stop_optimization(message=True)
 
     def convergence_criteria(self, i, num_iter, delta_total_cost):
-        if delta_total_cost <= 30:
+        if abs(delta_total_cost) <= 0.01:
             self.status = 'converged'
             return True
         if i == num_iter:

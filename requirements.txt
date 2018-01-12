@@ -2,7 +2,7 @@ codecov
 coverage
 cython
 cvxpy
-joblib
+cvxopt
 matplotlib
 nose
 numpy

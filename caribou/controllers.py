@@ -6,7 +6,6 @@ import caribou.datagenerators as datagenerators
 
 HOURS_PER_DAY = 24
 
-
 class LocalController():
     def __init__(self, agentgroup, globalcontroller, plot_callback=None):
         self.agentgroup = agentgroup
@@ -16,8 +15,12 @@ class LocalController():
             self.plot_calback = plot_callback
         self.control_values = 0
 
-    def run_local_optim(self, globalcontroller_variables):
-        x_result, f_result = self.local_solve(globalcontroller_variables)
+    def run_local_optim(self, globalcontroller_variables, solver=None):
+        if solver is None:
+            x_result, f_result = self.local_solve(globalcontroller_variables)
+        if solver is not None:
+            x_result, f_result = self.local_solve(
+                globalcontroller_variables, solver=solver)
         self.control_values = x_result
         return x_result, f_result
 
@@ -42,7 +45,7 @@ class TravaccaEtAl2017LocalController(LocalController):
             agentgroup, globalcontroller, plot_callback=plot_callback)
 
         self.data_generator = data_generator
-        self.delta = 0.005
+        self.delta = 0.01
         self.max_local_power = 10
 
         self.e_max = self.data_generator.load_individual_e_max(self.group_id)
@@ -104,20 +107,18 @@ class TravaccaEtAl2017LocalController(LocalController):
         return np.concatenate(
             (self.individual_dam_price_predicted - nu, np.dot(b, mu)), axis=0)
 
-    def local_solve(self, globalcontroller_variables):
+    def local_solve(self, globalcontroller_variables, solver='CVXOPT'):
         mu, nu, day = globalcontroller_variables
         self.update_matrices_local_quadr_opt(day)
         fq = self.update_fq(mu, nu, day)
         x_result, f_result = solvers.with_cvxpy(self.hq, fq, self.aq, self.bq,
-                                                self.aeq, self.beq)
+                                                self.aeq, self.beq, solver=solver)
         return x_result, f_result
 
     def run_simulation(self):
         x_result = self.control_values
         g_result = x_result[:HOURS_PER_DAY]
         ev_result = x_result[HOURS_PER_DAY:]
-        print('ok')
-
 
 class GlobalController():
     def __init__(self, plot_callback=None):
@@ -152,6 +153,13 @@ class TravaccaEtAl2017GlobalController(GlobalController):
             start_day, time_horizon)
         self.c = self.create_c()
         self.b = self.create_b()
+        self.solver = 'CVXOPT'
+
+    def set_local_solver(self, solver):
+        self.solver = solver
+
+    def local_solver(self, solver):
+        return self.solver
 
     def get_data_generator(self):
         return self.data_generator
@@ -169,7 +177,7 @@ class TravaccaEtAl2017GlobalController(GlobalController):
         return np.concatenate(
             (-a.T, a.T, -np.eye(HOURS_PER_DAY), np.eye(HOURS_PER_DAY)), axis=1)
 
-    def global_solve(self, num_iter=100, gamma=0.00001, alpha=1):
+    def global_solve(self, num_iter=50, gamma=0.00001, alpha=1):
         mu, nu, g_result, ev_result, local_optimum_cost, total_cost = self.initialize_gradient_ascent(
             num_iter)
         i = 0
@@ -182,9 +190,9 @@ class TravaccaEtAl2017GlobalController(GlobalController):
                                                     local_optimum_cost)
             mu = self.update_mu(mu, gamma, ev_result)
             nu = self.update_nu(nu, gamma, alpha, g_result)
-            print(mu, nu)
             delta_total_cost = total_cost[i] - previous_total_cost
             i += 1
+        print(self.status)
         self.plot_results(g_result, ev_result, total_cost)
         self.give_signal_stop_optimization(message=True)
 
@@ -193,7 +201,7 @@ class TravaccaEtAl2017GlobalController(GlobalController):
             print('converged')
             return True
         if i == num_iter:
-            print('max iteration reached')
+            self.status = 'max iteration reached'
             return True
         return False
 
@@ -205,13 +213,13 @@ class TravaccaEtAl2017GlobalController(GlobalController):
             ['g_result', 'ev_result'])
         self.plot_callback([total_cost], 'total_cost_predicted',
                            ['total cost'])
-        self.plot_callback([self.data_generator.dam_price, self.data_generator.dam_demand],
-                           'DAM prices and energy demand',
-                           ['dam_price', 'dam_demand'])
-        self.plot_callback([self.data_generator.dam_predict_price, self.data_generator.dam_price],
-                           'DAM prices predicted and real',
-                           ['dam_predict_price', 'dam_price'])
-
+        self.plot_callback(
+            [self.data_generator.dam_price, self.data_generator.dam_demand],
+            'DAM prices and energy demand', ['dam_price', 'dam_demand'])
+        self.plot_callback([
+            self.data_generator.dam_predict_price,
+            self.data_generator.dam_price
+        ], 'DAM prices predicted and real', ['dam_predict_price', 'dam_price'])
 
     def update_mu(self, mu, gamma, ev_result):
         return np.maximum(mu + gamma * self.c + gamma * np.dot(
@@ -236,11 +244,11 @@ class TravaccaEtAl2017GlobalController(GlobalController):
                     (num_iter, 1))
 
     def next_step_gradient_ascent(self, mu, nu, g_result, ev_result,
-                                  local_optimum_cost):
+            local_optimum_cost):
         globalcontroller_variables = (mu, nu, self.day)
         for i, localcontroller in enumerate(self.list_localcontrollers):
             x_result, f_result = localcontroller.run_local_optim(
-                globalcontroller_variables)
+                    globalcontroller_variables, solver=self.solver)
             g_result[:, i] = x_result[:HOURS_PER_DAY]
             ev_result[:, i] = x_result[HOURS_PER_DAY:]
             local_optimum_cost[i, 0] = f_result

@@ -1,6 +1,6 @@
 import caribou.agentgroups as agentgroups
 import caribou.agents as agents
-import caribou.eventhandlers as eventhandlers
+import caribou.events as events
 import unittest
 
 
@@ -17,12 +17,12 @@ class TestContructionAgentGroup(unittest.TestCase):
         list_agents_house = [EV_agent, PV_agent]
         self.assertEqual(self.house.get_agents(), list_agents_house)
 
-    def test_list_eventhandlers(self):
+    def test_list_events(self):
         EV_agent = agents.EV(agent_id=0)
         PV_agent = agents.PV(agent_id=1)
         self.house.add(EV_agent)
         self.house.add(PV_agent)
-        self.assertIsInstance(self.house.get_list_eventhandlers()[0], eventhandlers.EventHandler)
+        self.assertIsInstance(self.house.get_list_events()[0], events.Event)
 
     def test_get_instant_power_load(self):
         for i in range(10):

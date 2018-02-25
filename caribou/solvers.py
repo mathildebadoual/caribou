@@ -1,6 +1,7 @@
 import numpy as np
 import cvxpy
 import cvxopt
+import quadprog
 
 HOURS_PER_DAY = 24
 

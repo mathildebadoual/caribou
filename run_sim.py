@@ -1,33 +1,43 @@
 import numpy as np
 import caribou.agents as agents
-import caribou.agentgroups as agentgroups
-import caribou.controllers as controllers
+import caribou.schedulers as schedulers
 import caribou.visualization as visualization
+import caribou.agentgroups as agentgroups
 
 visualize = visualization.Visualize()
 
 np.random.seed(seed=1)
 
 list_houses = []
-list_localcontrollers = []
-globalcontroller = controllers.TravaccaEtAl2017GlobalController(
+list_localschedulers = []
+globalscheduler = schedulers.TravaccaEtAl2017GlobalScheduler(
         start_day=32, plot_callback=visualize.callback)
-data_generator = globalcontroller.get_data_generator()
+data_generator = globalscheduler.get_data_generator()
 
-for i in range(100):
+for i in range(50):
     group_id = i
-    house = agentgroups.ResidentialBuilding(group_id)
+    house = agentgroups.AgentGroup(group_id)
     list_houses.append(house)
     house.add(agents.EV(i))
     house.add(agents.PV(2 * i))
 
-    localcontroller = controllers.TravaccaEtAl2017LocalController(
-            house, globalcontroller, data_generator, plot_callback=visualize.callback)
-    list_localcontrollers.append(localcontroller)
+    localscheduler = schedulers.TravaccaEtAl2017LocalScheduler(
+            house, globalscheduler, data_generator, plot_callback=visualize.callback)
+    list_localschedulers.append(localscheduler)
 
-globalcontroller.set_list_localcontrollers(list_localcontrollers)
+globalscheduler.set_list_localschedulers(list_localschedulers)
 
-globalcontroller.set_local_solver('ECOS')
-globalcontroller.run_global_optim()
+globalscheduler.run_global_optim()
 
 visualize.plot_all()
+
+
+# ev_transition_dict = {
+#                charge: [[not_charge, t_ev_not_charge], [gone, t_ev_gone]],
+#                not_charge: [[charge, t_ev_charge], [gone, t_ev_gone]],
+#                gone: [[charge, t_ev_charge], [not_charge, t_ev_charge]]}
+
+# battery_transition_dic = {
+#        charge: [[not_charge, t_b_not_charge]],
+#        not_charge: [[charge, t_b_charge]]}
+

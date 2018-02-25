@@ -1,5 +1,4 @@
 import numpy as np
-import quadprog
 import cvxpy
 import cvxopt
 

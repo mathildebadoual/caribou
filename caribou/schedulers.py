@@ -1,33 +1,33 @@
-"""Solvers."""
+"""Schedulers"""
 
 import numpy as np
-import caribou.solvers as solvers
 import caribou.datagenerators as datagenerators
+import caribou.solvers as solvers
 
 HOURS_PER_DAY = 24
 
-class LocalSolver():
+class LocalScheduler():
     def __init__(self,
                  agentgroup,
-                 globalsolver,
+                 globalscheduler,
                  plot_callback=None):
         self.agentgroup = agentgroup
-        self.globalsolver = globalsolver
+        self.globalscheduler = globalscheduler
         self.group_id = self.agentgroup.get_group_id()
         if plot_callback is not None:
             self.plot_calback = plot_callback
         self.control_values = 0
 
-    def run_local_optim(self, globalsolver_variables, solver=None):
+    def run_local_optim(self, globalscheduler_variables, solver=None):
         if solver is None:
-            x_result, f_result = self.local_solve(globalsolver_variables)
+            x_result, f_result = self.local_solve(globalscheduler_variables)
         if solver is not None:
             x_result, f_result = self.local_solve(
-                globalsolver_variables, solver=solver)
+                globalscheduler_variables, solver=solver)
         self.control_values = x_result
         return x_result, f_result
 
-    def local_solve(self, globalsolver_variables):
+    def local_solve(self, globalscheduler_variables):
         raise NotImplementedError
 
     def receive_signal_stop_optimization(self, message=False):
@@ -38,14 +38,14 @@ class LocalSolver():
         raise NotImplementedError
 
 
-class TravaccaEtAl2017LocalSolver(LocalSolver):
+class TravaccaEtAl2017LocalScheduler(LocalScheduler):
     def __init__(self,
                  agentgroup,
-                 globalsolver,
+                 globalscheduler,
                  data_generator,
                  plot_callback=None):
         super().__init__(
-            agentgroup, globalsolver, plot_callback=plot_callback)
+            agentgroup, globalscheduler, plot_callback=plot_callback)
 
         self.data_generator = data_generator
         self.delta = 0.01
@@ -110,8 +110,8 @@ class TravaccaEtAl2017LocalSolver(LocalSolver):
         return np.concatenate(
             (self.individual_dam_price_predicted - nu, np.dot(b, mu)), axis=0)
 
-    def local_solve(self, globalsolver_variables, solver='CVXOPT'):
-        mu, nu, day = globalsolver_variables
+    def local_solve(self, globalscheduler_variables, solver='CVXOPT'):
+        mu, nu, day = globalscheduler_variables
         self.update_matrices_local_quadr_opt(day)
         fq = self.update_fq(mu, nu, day)
         x_result, f_result = solvers.with_cvxpy(self.hq, fq, self.aq, self.bq,
@@ -123,18 +123,18 @@ class TravaccaEtAl2017LocalSolver(LocalSolver):
         g_result = x_result[:HOURS_PER_DAY]
         ev_result = x_result[HOURS_PER_DAY:]
 
-class GlobalSolver():
+class GlobalScheduler():
     def __init__(self, plot_callback=None):
-        self.list_localsolvers = []
+        self.list_localschedulers = []
         self.plot_callback = plot_callback
 
         self.day = 0
 
-    def set_list_localsolvers(self, list_localsolvers):
-        self.list_localsolvers = list_localsolvers
+    def set_list_localschedulers(self, list_localschedulers):
+        self.list_localschedulers = list_localschedulers
 
-    def get_list_localsolvers(self):
-        return self.list_localsolvers
+    def get_list_localschedulers(self):
+        return self.list_localschedulers
 
     def run_global_optim(self):
         self.global_solve()
@@ -143,12 +143,12 @@ class GlobalSolver():
         raise NotImplementedError
 
     def give_signal_stop_optimization(self, message=False):
-        for localsolver in self.list_localsolvers:
-            localsolver.receive_signal_stop_optimization(message=message)
+        for localscheduler in self.list_localschedulers:
+            localscheduler.receive_signal_stop_optimization(message=message)
         self.day += 1
 
 
-class TravaccaEtAl2017GlobalSolver(GlobalSolver):
+class TravaccaEtAl2017GlobalScheduler(GlobalScheduler):
     def __init__(self, start_day=32, time_horizon=1,
                  plot_callback=None):  # time_horizon in days
         super().__init__(plot_callback=plot_callback)
@@ -161,8 +161,8 @@ class TravaccaEtAl2017GlobalSolver(GlobalSolver):
     def set_local_solver(self, solver):
         self.solver = solver
 
-    def local_solver(self, solver):
-        return self.solver
+    def local_solver(self, scheduler):
+        return self.scheduler
 
     def get_data_generator(self):
         return self.data_generator
@@ -180,13 +180,14 @@ class TravaccaEtAl2017GlobalSolver(GlobalSolver):
         return np.concatenate(
             (-a.T, a.T, -np.eye(HOURS_PER_DAY), np.eye(HOURS_PER_DAY)), axis=1)
 
-    def global_solve(self, num_iter=100, gamma=0.00001, alpha=1):
+    def global_solve(self, num_iter=10, gamma=0.00001, alpha=1):
         mu, nu, g_result, ev_result, local_optimum_cost, total_cost = self.initialize_gradient_ascent(
             num_iter)
         i = 0
         delta_total_cost = 100
         previous_total_cost = 0
         while self.convergence_criteria(i, num_iter, delta_total_cost) is False:
+            print('global_solve')
             g_result, ev_result, local_optimum_cost = self.next_step_gradient_ascent(
                 mu, nu, g_result, ev_result, local_optimum_cost)
             total_cost[i] = self.compute_total_cost(mu, nu, alpha,
@@ -241,7 +242,7 @@ class TravaccaEtAl2017GlobalSolver(GlobalSolver):
                          )) + np.dot(self.c.T, mu) + np.sum(local_optimum_cost)
 
     def initialize_gradient_ascent(self, num_iter):
-        size = len(self.list_localsolvers)
+        size = len(self.list_localschedulers)
         return np.zeros((HOURS_PER_DAY * 4, 1)), np.zeros(
             (HOURS_PER_DAY, 1)), np.zeros((HOURS_PER_DAY, size)), np.zeros(
                 (HOURS_PER_DAY, size)), np.zeros((size, 1)), np.zeros(
@@ -249,10 +250,10 @@ class TravaccaEtAl2017GlobalSolver(GlobalSolver):
 
     def next_step_gradient_ascent(self, mu, nu, g_result, ev_result,
             local_optimum_cost):
-        globalsolver_variables = (mu, nu, self.day)
-        for i, localsolver in enumerate(self.list_localsolvers):
-            x_result, f_result = localsolver.run_local_optim(
-                    globalsolver_variables, solver=self.solver)
+        globalscheduler_variables = (mu, nu, self.day)
+        for i, localscheduler in enumerate(self.list_localschedulers):
+            x_result, f_result = localscheduler.run_local_optim(
+                    globalscheduler_variables, solver=self.solver)
             g_result[:, i] = x_result[:HOURS_PER_DAY]
             ev_result[:, i] = x_result[HOURS_PER_DAY:]
             local_optimum_cost[i, 0] = f_result

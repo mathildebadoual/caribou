@@ -1,42 +1,63 @@
 import caribou.agents as agents
+import caribou.eventhandlers as eventhandlers
+import caribou.time as time
+import caribou.controllers as controllers
+import caribou.agentgroups as agentgroups
 import unittest
 
-
-class TestContructionAgent(unittest.TestCase):
-    def setUp(self):
-        self.agent = agents.Agent(0)
-
-    def test_get_id(self):
-        self.assertEqual(self.agent.get_id(), 0)
-
-    def test_get_instant_power_gen(self):
-        self.agent.set_instant_power_gen(1)
-        self.assertEqual(self.agent.get_instant_power_gen(), 1)
-
-    def test_get_instant_power_load(self):
-        self.agent.set_instant_power_load(2)
-        self.assertEqual(self.agent.get_instant_power_load(), 2)
-
-    def test_get_accum_power_load(self):
-        for i in range(10):
-            self.agent.set_instant_power_load(1)
-            self.agent.update_accum_power_load()
-        self.assertEqual(self.agent.get_accum_power_load(), 10)
 
 
 class TestConstructionEV(unittest.TestCase):
     def setUp(self):
-        self.agent_EV = agents.EV(0)
+        timer = time.Timer()
+        eventhandler = eventhandlers.EventHandler()
+        agentgroup = agentgroups.AgentGroup(0)
+        localcontroller = controllers.LocalController(timer, agentgroup, eventhandler)
+        self.agent_EV = agents.EV(0, localcontroller)
+        agentgroup.add(self.agent_EV)
 
-    def test_get_status(self):
-        self.agent_EV.set_status('Charging')
-        self.assertEqual(self.agent_EV.get_status(), 2)
+    def test_set_state(self):
+        self.agent_EV.set_status_control('charging')
+        self.assertEqual(self.agent_EV.status_control, 'charging')
+        self.agent_EV.set_status_current('not charging')
+        self.assertEqual(self.agent_EV.status_current, 'not charging')
+
+    def test_build_state_machine(self):
+        self.assertEqual(len(self.agent_EV.transition_dict[self.agent_EV.charge]), 2)
+        self.assertEqual(len(self.agent_EV.transition_dict[self.agent_EV.charge][0]), 2)
 
 
-class TestConstructionPV(unittest.TestCase):
+class TestConstructionBattery(unittest.TestCase):
     def setUp(self):
-        self.agent_PV = agents.PV(0)
+        timer = time.Timer()
+        eventhandler = eventhandlers.EventHandler()
+        agentgroup = agentgroups.AgentGroup(0)
+        localcontroller = controllers.LocalController(timer, agentgroup, eventhandler)
+        self.agent_B = agents.Battery(0, localcontroller)
+        agentgroup.add(self.agent_B)
 
+    def test_state(self):
+        self.agent_B.set_status_control('charging')
+        self.assertEqual(self.agent_B.status_control, 'charging')
+        self.agent_B.set_status_current('not charging')
+        self.assertEqual(self.agent_B.status_current, 'not charging')
+
+    def test_build_state_machine(self):
+        self.assertEqual(len(self.agent_B.transition_dict[self.agent_B.charge]), 1)
+        self.assertEqual(len(self.agent_B.transition_dict[self.agent_B.charge][0]), 2)
+
+
+class TestRunEV(unittest.TestCase):
+    def setUp(self):
+        timer = time.Timer()
+        eventhandler = eventhandlers.EventHandler()
+        agentgroup = agentgroups.AgentGroup(0)
+        localcontroller = controllers.LocalController(timer, agentgroup, eventhandler)
+        self.agent_EV = agents.EV(0, localcontroller)
+        agentgroup.add(self.agent_EV)
+
+    def test_run_sim(self):
+        pass
 
 if __name__ == '__main__':
     unittest.main()

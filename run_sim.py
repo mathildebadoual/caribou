@@ -32,12 +32,5 @@ globalscheduler.run_global_optim()
 visualize.plot_all()
 
 
-# ev_transition_dict = {
-#                charge: [[not_charge, t_ev_not_charge], [gone, t_ev_gone]],
-#                not_charge: [[charge, t_ev_charge], [gone, t_ev_gone]],
-#                gone: [[charge, t_ev_charge], [not_charge, t_ev_charge]]}
 
-# battery_transition_dic = {
-#        charge: [[not_charge, t_b_not_charge]],
-#        not_charge: [[charge, t_b_charge]]}
 

@@ -4,65 +4,105 @@ import random
 
 
 class Agent:
-    def __init__(self, agent_id):
+    def __init__(self, agent_id, localcontroller):
         self.agent_id = agent_id
+        self.localcontroller = localcontroller
 
     def get_id(self):
         return self.agent_id
 
 
-class PV(Agent):
-    def __init__(self, agent_id):
-        super().__init__(agent_id)
-        self.record_gen = []
-
-    def compute_instant_power_gen(self, irradiance):
-        self.power_gen = self.efficiency*self.angle*irradiance
-
-
 class EV(Agent):
-    def __init__(self, agent_id):
-        super().__init__(agent_id)
+    def __init__(self, agent_id, localcontroller):
+        super().__init__(agent_id, localcontroller)
         self.capacity = 24
         self.record_soc = []
         self.charge_rate_max = 10
         self.charge_rate_min = -10
         self.charge_rate = 0
-        self.state_control = None
-        self.actual_state = None
+        self.status_control = None
+        self.status_current = None
+        self.build_state_machine()
 
-    def set_state_control(self, state_name):
+    def build_state_machine(self):
+        self.charge = EvState(self, 'charge', self.localcontroller, 1)
+        self.not_charge = EvState(self, 'not charge', self.localcontroller, 0)
+        self.gone = EvState(self, 'gone', self.localcontroller, 0)
+        self.transition_dict = {
+                self.charge: [[self.not_charge, self.t_ev_not_charge], [self.gone, self.t_ev_gone]],
+                self.not_charge: [[self.charge, self.t_ev_charge], [self.gone, self.t_ev_gone]],
+                self.gone: [[self.charge, self.t_ev_charge], [self.not_charge, self.t_ev_not_charge]]}
+
+    def t_ev_not_charge(self, y):
+        if (y == agent.capacity or y == 0) and not self.status_control == 'gone':
+            return True
+        if self.status_control == 'not charge':
+            return True
+        return False
+
+    def t_ev_charge(self, y):
+        if self.status_control == 'charge':
+            return True
+        return False
+
+    def t_ev_gone(self, y):
+        if self.status_control == 'gone':
+            return True
+        return False
+
+    def set_status_control(self, state_name):
         if state_name in ['gone', 'charging', 'not charging']:
-            self.state_control = state_name
+            self.status_control = state_name
         else:
             print('not the right sintax')
 
-    def set_state_actual(self, state_name):
+    def set_status_current(self, state_name):
         if state_name in ['gone', 'charging', 'not charging']:
-            self.state_actual = state_name
+            self.status_current = state_name
         else:
             print('not the right syntax')
 
+
 class Battery(Agent):
-    def __init__(self, agent_id):
-        super().__init__(agent_id)
+    def __init__(self, agent_id, localcontroller):
+        super().__init__(agent_id, localcontroller)
         self.capacity = 24
         self.record_soc = []
         self.charge_rate_max = 10
         self.charge_rate_min = -10
         self.charge_rate = 0
-        self.state_control = None
-        self.actual_state = None
+        self.status_control = None
+        self.status_current = None
+        self.build_state_machine()
 
-    def set_state_control(self, state_name):
+    def build_state_machine(self):
+        self.charge = BatteryState(self, 'charge', self.localcontroller, 1)
+        self.not_charge = BatteryState(self, 'not charge', self.localcontroller, 0)
+        self.transition_dict = {
+                self.charge : [[self.not_charge, self.t_b_not_charge]],
+                self.not_charge : [[self.charge, self.t_b_charge]]}
+
+    def t_b_not_charge(self, y):
+        if (y == self.capacity or y == 0):
+            return True
+        if self.status_control == 'not charge':
+            return True
+        return False
+
+    def t_b_charge(self, y):
+        if self.status_control == 'charge':
+            return True
+        return False
+
+    def set_status_control(self, state_name):
         if state_name in ['charging', 'not charging']:
-            self.state_control = state_name
+            self.status_control = state_name
         else:
             print('not the right syntax')
 
-    def set_state_actual(self, state_name):
+    def set_status_current(self, state_name):
         if state_name in ['charging', 'not charging']:
-            self.state_actual = state_name
+            self.status_current = state_name
         else:
             print('not the right sintax')
 
@@ -72,16 +112,15 @@ class Battery(Agent):
 # TODO(Mathilde): this part should be somewhere else because it is the model of the agents
 
 class State:
-    def __init__(self, agent, name, eventhandler, localcontroller, transition_dict):
+    def __init__(self, agent, name, localcontroller):
         self.agent = agent
         self.name = name
-        self.eventhander = eventhandler
-        self.localcontroller
-        self.transition_dict = transition_dict
-        self.reachable_states = self.transition_dict[self]
+        self.eventhander = localcontroller.eventhandler
+        self.localcontroller = localcontroller
 
     def check_transition_from(self):
-        for state in self.reachable_states:
+        reachable_states = self.agent.transition_dict[self]
+        for state in reachable_states:
             if state[1](self.y_current, self.agent):
                 self.state_to_transit = state[0]
                 return True
@@ -94,9 +133,9 @@ class State:
         raise NotImplementedError
 
 
-class EvState:
-    def __init__(self, agent, name, eventhandler, localcontroller, transition_dict, charge_on):
-        super().__init__(agent, name, eventhandler, localcontroller, transition_dict)
+class EvState(State):
+    def __init__(self, agent, name, localcontroller, charge_on):
+        super().__init__(agent, name, localcontroller)
         self.charge_on = charge_on
 
     def run_step(self):
@@ -104,7 +143,7 @@ class EvState:
 
     def run_sim(self, y_init):
         self.y_current = y_init
-        self.agent.actual_state = self.name
+        self.agent.status_current = self.name
         if self.name == 'gone':
             self.y_current = random.randint(0, self.agent.capacity)
         while not self.check_transition_from and self.local_controller.check_time_max():
@@ -116,9 +155,9 @@ class EvState:
         return self.state_to_transit.run_sim(self.y_current)
 
 
-class BatteryState:
-    def __init__(self, agent, name, eventhandler, localcontroller, transition_dict, charge_on):
-        super().__init__(agent, name, eventhandler, localcontroller, transition_dict)
+class BatteryState(State):
+    def __init__(self, agent, name, localcontroller, charge_on):
+        super().__init__(agent, name, localcontroller)
         self.charge_on = charge_on
 
     def run_step(self):
@@ -126,7 +165,7 @@ class BatteryState:
 
     def run_sim(self, y_init):
         self.y_current = y_init
-        self.agent.actual_state = self.name
+        self.agent.status_current = self.name
         while not self.check_transition_from and self.local_controller.check_time_max():
             self.eventhandler.pause_until(self.localcontroller.updated)
             self.y_current = self.run_step()
@@ -134,36 +173,3 @@ class BatteryState:
         if not self.local_controller.check_time_max():
             self.local_controller.agent_end_simulation()
         return self.state_to_transit.run_sim(self.y_current)
-
-
-# transition functions:
-
-def t_ev_not_charge(y, agent):
-    if (y == agent.capacity or y == 0) and not agent.state_control == 'gone':
-        return True
-    if agent.state_control == 'not charge':
-        return True
-    return False
-
-def t_ev_charge(y, agent):
-    if agent.state_control == 'charge':
-        return True
-    return False
-
-def t_ev_gone(y, agent):
-    if agent.state_control == 'gone':
-        return True
-    return False
-
-def t_b_not_charge(y, agent):
-    if (y == agent.capacity or y == 0):
-        return True
-    if agent.state_control == 'not charge':
-        return True
-    return False
-
-def t_b_charge(y, agent):
-    if agent.state_control == 'charge':
-        return True
-    return False
-

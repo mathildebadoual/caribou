@@ -118,3 +118,49 @@ class TravaccaEtAl2017DataGenerator(DataGenerator):
     def load_individual_dam_price_predicted(self, day):
         return np.reshape(self.load_predict_dam_price()[day * HOURS_PER_DAY:(
             24 + 1) * HOURS_PER_DAY], (-1, 1))
+
+
+class ModelDataGenerator(DataGenerator):
+    def __init__(self, start_day, time_horizon):
+        super().__init__()
+        self.start_date = start_date
+        self.time_horizon = time_horizon
+        self.generate_random_data()
+        self.set_data_constraints()
+
+    def get_data_constraints(self):
+
+        #TODO(Mathilde): Ramon this is for something else we could discuss later :)
+
+    def generate_random_data(self):
+        #TODO(Mathilde): Ramon in this part you generate data for a simulation with the self.time_horizon, then those data are stored in whatever you want, but it might be simpler to just create a variable self.name_varible and then I will just call those data. Prices are new for you but the method is the same, we can work together on that part.
+
+        self.individual_load_prediction =
+        self.pv_generation_prediction =
+        self.prices_prediction =
+        self.prices_covariance_prediction =
+
+
+    def set_data_constraints(self):
+        self.e_max = np.genfromtxt(
+            'data/travacca_et_al_2017/dam_e_max.csv', delimiter=',')
+        self.e_min = np.genfromtxt(
+            'data/travacca_et_al_2017/dam_e_min.csv', delimiter=',')
+        self.ev_max = np.genfromtxt(
+            'data/travacca_et_al_2017/dam_EV_max.csv', delimiter=',')
+        self.ev_min = np.genfromtxt(
+            'data/travacca_et_al_2017/dam_EV_min.csv', delimiter=',')
+        self.e_max_agg = np.genfromtxt(
+            'data/travacca_et_al_2017/dam_e_max_agg.csv', delimiter=',')
+        self.e_min_agg = np.genfromtxt(
+            'data/travacca_et_al_2017/dam_e_min_agg.csv', delimiter=',')
+        self.ev_max_agg = np.genfromtxt(
+            'data/travacca_et_al_2017/dam_EV_max_agg.csv', delimiter=',')
+        self.ev_min_agg = np.genfromtxt(
+            'data/travacca_et_al_2017/dam_EV_min_agg.csv', delimiter=',')
+        self.grid_load_max =
+
+
+
+
+

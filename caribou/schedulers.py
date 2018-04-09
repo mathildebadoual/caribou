@@ -1,6 +1,7 @@
-"""Schedulers"""
+"""Schedulers for"""
 
 import numpy as np
+import cvxpy
 import caribou.datagenerators as datagenerators
 import caribou.solvers as solvers
 
@@ -123,11 +124,11 @@ class TravaccaEtAl2017LocalScheduler(LocalScheduler):
         g_result = x_result[:HOURS_PER_DAY]
         ev_result = x_result[HOURS_PER_DAY:]
 
+
 class GlobalScheduler():
     def __init__(self, plot_callback=None):
         self.list_localschedulers = []
         self.plot_callback = plot_callback
-
         self.day = 0
 
     def set_list_localschedulers(self, list_localschedulers):
@@ -148,6 +149,70 @@ class GlobalScheduler():
         self.day += 1
 
 
+class ModelGlobalScheduler(GlobalScheduler):
+    def __init__(self, start_day=32, time_horizon=1, plot_callback=None):
+        super().__init__(plot_callback=plot_callback)
+        self.data_generator = datagenerators.ModelDataGenerator(sart_day, time_horizon)
+        self.solver = 'CVXPY'
+        self.alpha = 1
+        self.dela = 1
+
+    def get_data_generator(self):
+        return self.data_generator
+
+    def global_solver(self):
+        individual_load_prediction =
+        pv_generation_prediction,
+        prices_prediction,
+        prices_covariance = self.data_generator.get_predictions()
+
+        grid_load_max = self.data_generator.grid_load_max
+        e_min = self.data_generator.e_min
+        ev_min = self.data_generator.ev_min
+        ev_max = self.data_generator.ev_max
+        e_max_agg = self.data_generator.e_max_agg
+        e_min_agg = self.data_generator.e_min_agg
+        ev_min_agg = self.data_generator.ev_min_agg
+        ev_max_agg = self.data_generator.ev_max_agg
+
+        number_elements = len(self.list_local_schedulers)
+
+        grid_load = Variable(number_elements, time_horizon * HOURS_PER_DAY)
+        ev_load = Variable(number_elements, time_horizon * HOURS_PER_DAY)
+
+        cost_function = np.sum(grid_load) * prices_prediction
+        + self.alpha * np.sum(grid_load) * prices_covariance * np.sum(grid_load)
+        + self.delta / 2 * (cvxpy.square_pos(cvxpy.norm(ev_load, 'fro'))
+        + cvxpy.square_pos(cvxpy.norm(grid_load), 'fro'))
+
+        constraints = [individual_load_prediction + ev_load <=
+                pv_generation_prediction + grid_load]
+        constraints += [- grid_load_max <= grid_load <= grid_load_max]
+
+        for i in range(number_elements):
+            constraints += [e_min[i, :] <= A * ev_load[i, :] <= e_max[i, :]]
+            constraints += [ev_min[i, :] <= ev_load[i, :] <= ev_max[i, :]]
+
+        constraints += [e_min_agg <= A * np.sum(ev_load) <= e_max_agg]
+        constraints += [ev_min_agg <= np.sum(ev_load) <= ev_max_agg]
+
+        prob = cvxpy.Problem(cost_function, constraints)
+        prob.solve()
+        print('solved')
+        print("status:", prob.status)
+        print("optimal value", prob.value)
+        print("optimal var", grid_load.value, ev_load.value)
+
+
+    def set_parameters(self, alpha=1, delta=1):
+        self.alpha = alpha
+        self.delta = delta
+
+
+
+
+
+
 class TravaccaEtAl2017GlobalScheduler(GlobalScheduler):
     def __init__(self, start_day=32, time_horizon=1,
                  plot_callback=None):  # time_horizon in days
@@ -158,11 +223,8 @@ class TravaccaEtAl2017GlobalScheduler(GlobalScheduler):
         self.b = self.create_b()
         self.solver = 'CVXOPT'
 
-    def set_local_solver(self, solver):
+    def set_solver(self, solver):
         self.solver = solver
-
-    def local_solver(self, scheduler):
-        return self.scheduler
 
     def get_data_generator(self):
         return self.data_generator

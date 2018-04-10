@@ -7,6 +7,10 @@ import caribou.solvers as solvers
 
 HOURS_PER_DAY = 24
 
+
+""" Loval Schedulers """
+
+
 class LocalScheduler():
     def __init__(self,
                  agentgroup,
@@ -19,24 +23,28 @@ class LocalScheduler():
             self.plot_calback = plot_callback
         self.control_values = 0
 
-    def run_local_optim(self, globalscheduler_variables, solver=None):
-        if solver is None:
-            x_result, f_result = self.local_solve(globalscheduler_variables)
-        if solver is not None:
-            x_result, f_result = self.local_solve(
-                globalscheduler_variables, solver=solver)
-        self.control_values = x_result
-        return x_result, f_result
-
     def local_solve(self, globalscheduler_variables):
         raise NotImplementedError
 
-    def receive_signal_stop_optimization(self, message=False):
-        if message is True:
-            self.run_simulation()
 
-    def run_simulation(self):
-        raise NotImplementedError
+class ModelLocalScheduler(LocalScheduler):
+    def __init__(self,
+            agentgroup,
+            globalscheduler,
+            data_generator,
+            plot_callback=None):
+        super().__init__(
+                agentgroup, globalscheduler, plot_callback=plot_callback)
+
+
+class TravaccaEtAl2017AggLocalScheduler(LocalScheduler):
+    def __init__(self,
+            agentgroup,
+            globalscheduler,
+            data_generator,
+            plot_callback=None):
+        super().__init__(
+                agentgroup, globalscheduler, plot_callback=plot_callback)
 
 
 class TravaccaEtAl2017LocalScheduler(LocalScheduler):
@@ -57,13 +65,22 @@ class TravaccaEtAl2017LocalScheduler(LocalScheduler):
         self.ev_max = self.data_generator.load_individual_ev_max(self.group_id)
         self.ev_min = self.data_generator.load_individual_ev_min(self.group_id)
 
+    def run_local_optim(self, globalscheduler_variables, solver=None):
+        if solver is None:
+            x_result, f_result = self.local_solve(globalscheduler_variables)
+        if solver is not None:
+            x_result, f_result = self.local_solve(
+                globalscheduler_variables, solver=solver)
+
+        self.grid_load_result = x_result[:HOURS_PER_DAY]
+        self.ev_load_result = x_result[HOURS_PER_DAY:]
+
+        return x_result, f_result
+
     def update_matrices_local_quadr_opt(self, day):
-        self.individual_dam_price_predicted = self.data_generator.load_individual_dam_price_predicted(
-            day)
-        self.individual_pv_gen_predicted = self.data_generator.generate_random_individual_pv_gen(
-            day)
-        self.individual_load_predicted = self.data_generator.generate_random_individual_load(
-            day)
+        self.individual_dam_price_predicted = self.data_generator.load_individual_dam_price_predicted(day)
+        self.individual_pv_gen_predicted = self.data_generator.generate_random_individual_pv_gen(day)
+        self.individual_load_predicted = self.data_generator.generate_random_individual_load(day)
         self.aeq = np.zeros((1, 2 * HOURS_PER_DAY))
         self.beq = np.array([[0]])
         self.aq = self.create_aq()
@@ -119,14 +136,16 @@ class TravaccaEtAl2017LocalScheduler(LocalScheduler):
                                                 self.aeq, self.beq, solver=solver)
         return x_result, f_result
 
-    def run_simulation(self):
-        x_result = self.control_values
-        g_result = x_result[:HOURS_PER_DAY]
-        ev_result = x_result[HOURS_PER_DAY:]
+
+
+""" Global Schedulers """
 
 
 class GlobalScheduler():
-    def __init__(self, plot_callback=None):
+    def __init__(self, data_generator, start_date, time_horizon, plot_callback=None):
+        self.data_generator = data_generator
+        self.start_date = start_date
+        self.time_horizon = time_horizon
         self.list_localschedulers = []
         self.plot_callback = plot_callback
         self.day = 0
@@ -143,31 +162,40 @@ class GlobalScheduler():
     def global_solve(self):
         raise NotImplementedError
 
-    def give_signal_stop_optimization(self, message=False):
-        for localscheduler in self.list_localschedulers:
-            localscheduler.receive_signal_stop_optimization(message=message)
-        self.day += 1
+    def get_result(self):
+        raise NotImplementedError
 
 
 class ModelGlobalScheduler(GlobalScheduler):
-    def __init__(self, start_day=32, time_horizon=1, plot_callback=None):
-        super().__init__(plot_callback=plot_callback)
-        self.data_generator = datagenerators.ModelDataGenerator(sart_day, time_horizon)
+    def __init__(self):
+        pass
+
+
+class TravaccaEtAl2017AggGlobalScheduler(GlobalScheduler):
+    def __init__(self, number_local_buildings, data_generator, start_date=32,
+            time_horizon=1, plot_callback=None):
+        super().__init__(data_generator, start_date, time_horizon, plot_callback=plot_callback)
+
+        if type(self.data_generator) != datagenerators.TravaccaEtAl2017AggDataGenerator:
+            raise ValueError('incorrect datagenerator type')
+
+        self.number_local_buildings = number_local_buildings
         self.solver = 'CVXPY'
         self.alpha = 1
-        self.dela = 1
+        self.delta = 0.01
 
     def get_data_generator(self):
         return self.data_generator
 
     def global_solver(self):
-        individual_load_prediction =
-        pv_generation_prediction,
-        prices_prediction,
-        prices_covariance = self.data_generator.get_predictions()
+        individual_load_prediction = self.data_generator.individual_load_prediction
+        pv_generation_prediction = self.data_generator.pv_generation_prediction
+        prices_prediction = self.data_generator.prices_prediction
+        prices_covariance_prediction = self.data_generator.prices_covariance_prediction
 
         grid_load_max = self.data_generator.grid_load_max
         e_min = self.data_generator.e_min
+        e_max = self.data_generator.e_max
         ev_min = self.data_generator.ev_min
         ev_max = self.data_generator.ev_max
         e_max_agg = self.data_generator.e_max_agg
@@ -175,50 +203,69 @@ class ModelGlobalScheduler(GlobalScheduler):
         ev_min_agg = self.data_generator.ev_min_agg
         ev_max_agg = self.data_generator.ev_max_agg
 
-        number_elements = len(self.list_local_schedulers)
+        matrix_a = np.tril(np.ones((HOURS_PER_DAY, HOURS_PER_DAY)))
 
-        grid_load = Variable(number_elements, time_horizon * HOURS_PER_DAY)
-        ev_load = Variable(number_elements, time_horizon * HOURS_PER_DAY)
+        grid_load = cvxpy.Variable(self.number_local_buildings,
+                self.time_horizon * HOURS_PER_DAY)
+        ev_load = cvxpy.Variable(self.number_local_buildings,
+                self.time_horizon * HOURS_PER_DAY)
 
-        cost_function = np.sum(grid_load) * prices_prediction
-        + self.alpha * np.sum(grid_load) * prices_covariance * np.sum(grid_load)
-        + self.delta / 2 * (cvxpy.square_pos(cvxpy.norm(ev_load, 'fro'))
-        + cvxpy.square_pos(cvxpy.norm(grid_load), 'fro'))
 
-        constraints = [individual_load_prediction + ev_load <=
-                pv_generation_prediction + grid_load]
-        constraints += [- grid_load_max <= grid_load <= grid_load_max]
+        cost_function = cvxpy.Minimize(cvxpy.sum_entries(grid_load, axis=0) * prices_prediction
+                + self.alpha * cvxpy.quad_form(cvxpy.sum_entries(grid_load, axis=0).T,
+                    prices_covariance_prediction))
+        + self.delta / 2 * (cvxpy.square(cvxpy.pos(cvxpy.norm(ev_load, 'fro')))
+        + cvxpy.square(cvxpy.pos(cvxpy.norm(grid_load, 'fro'))))
 
-        for i in range(number_elements):
-            constraints += [e_min[i, :] <= A * ev_load[i, :] <= e_max[i, :]]
-            constraints += [ev_min[i, :] <= ev_load[i, :] <= ev_max[i, :]]
 
-        constraints += [e_min_agg <= A * np.sum(ev_load) <= e_max_agg]
-        constraints += [ev_min_agg <= np.sum(ev_load) <= ev_max_agg]
+
+        constraints = [individual_load_prediction + ev_load <= pv_generation_prediction + grid_load]
+
+        constraints += [- grid_load_max <= grid_load,
+                grid_load <= grid_load_max]
+
+        epsilon = 3
+
+
+        for i in range(self.number_local_buildings):
+            #constraints += [e_min[i, :].T - epsilon <= matrix_a * ev_load[i, :].T,
+            #        matrix_a * ev_load[i, :].T <= e_max[i, :].T + epsilon]
+            constraints += [ev_min[i, :].T - epsilon <= ev_load[i, :].T ,
+                    ev_load[i, :].T <= ev_max[i, :].T + epsilon]
+
+        constraints += [e_min_agg.T <= matrix_a * cvxpy.sum_entries(ev_load, axis=0).T ,
+                matrix_a * cvxpy.sum_entries(ev_load, axis=0).T <= e_max_agg.T]
+        constraints += [ev_min_agg.T <= cvxpy.sum_entries(ev_load, axis=0).T ,
+                cvxpy.sum_entries(ev_load, axis=0).T <= ev_max_agg.T]
 
         prob = cvxpy.Problem(cost_function, constraints)
         prob.solve()
+        self.grid_load_result = grid_load.value
+        self.ev_load_result = ev_load.value
+        self.final_cost = prob.value
         print('solved')
         print("status:", prob.status)
         print("optimal value", prob.value)
-        print("optimal var", grid_load.value, ev_load.value)
+        #print("optimal var", grid_load.value, ev_load.value)
 
 
     def set_parameters(self, alpha=1, delta=1):
         self.alpha = alpha
         self.delta = delta
 
-
-
-
+    def get_result(self):
+        return (self.grid_load_result, self.ev_load_result)
 
 
 class TravaccaEtAl2017GlobalScheduler(GlobalScheduler):
-    def __init__(self, start_day=32, time_horizon=1,
-                 plot_callback=None):  # time_horizon in days
-        super().__init__(plot_callback=plot_callback)
-        self.data_generator = datagenerators.TravaccaEtAl2017DataGenerator(
-            start_day, time_horizon)
+    def __init__(self, data_generator, start_day=32, time_horizon=1,
+                 plot_callback=None):
+        super().__init__(data_generator, start_day,
+                time_horizon, plot_callback=plot_callback)
+
+        if type(self.data_generator) != datagenerators.TravaccaEtAl2017DataGenerator:
+            raise ValueError('incorrect datagenerator type')
+
         self.c = self.create_c()
         self.b = self.create_b()
         self.solver = 'CVXOPT'
@@ -260,7 +307,6 @@ class TravaccaEtAl2017GlobalScheduler(GlobalScheduler):
             i += 1
         print(self.status)
         self.plot_results(g_result, ev_result, total_cost)
-        self.give_signal_stop_optimization(message=True)
 
     def convergence_criteria(self, i, num_iter, delta_total_cost):
         if delta_total_cost <= 30:

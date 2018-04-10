@@ -14,8 +14,10 @@ class Agent:
 
 
 class EV(Agent):
-
+    def __init__(self):
+        pass
 
 
 class Battery(Agent):
     def __init__(self, agent_id, localcontroller):
+        pass

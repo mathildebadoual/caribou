@@ -1,14 +1,20 @@
 import caribou.schedulers as schedulers
 import caribou.agentgroups as agentgroups
+import caribou.datagenerators as datagenerators
 import numpy as np
 import unittest
 
 
 HOURS_PER_DAY = 24
 
+
+""" Local Schedulers Tests """
+
+
 class TestConstructionLocalScheduler(unittest.TestCase):
     def setUp(self):
         self.house = agentgroups.AgentGroup(0)
+        self.datagenerator = datagenerators.DataGenerator()
         self.globalscheduler = schedulers.GlobalScheduler()
         self.housescheduler = schedulers.LocalScheduler(
             self.house, self.globalscheduler)
@@ -17,7 +23,8 @@ class TestConstructionLocalScheduler(unittest.TestCase):
 class TestLoadDataTravaccaEtAl2017LocalScheduler(unittest.TestCase):
     def setUp(self):
         self.house = agentgroups.AgentGroup(0)
-        self.globalscheduler = schedulers.TravaccaEtAl2017GlobalScheduler()
+        self.data_generator = datagenerators.TravaccaEtAl2017DataGenerator()
+        self.globalscheduler = schedulers.TravaccaEtAl2017GlobalScheduler(self.data_generator)
         data_generator = self.globalscheduler.get_data_generator()
         self.localscheduler = schedulers.TravaccaEtAl2017LocalScheduler(
             self.house, self.globalscheduler, data_generator)
@@ -44,7 +51,8 @@ class TestLoadDataTravaccaEtAl2017LocalScheduler(unittest.TestCase):
 class TestRunOptimTravaccaEtAl2017LocalScheduler(unittest.TestCase):
     def setUp(self):
         self.house = agentgroups.AgentGroup(0)
-        self.globalscheduler = schedulers.TravaccaEtAl2017GlobalScheduler()
+        self.data_generator = datagenerators.TravaccaEtAl2017DataGenerator()
+        self.globalscheduler = schedulers.TravaccaEtAl2017GlobalScheduler(self.data_generator)
         data_generator = self.globalscheduler.get_data_generator()
         self.localscheduler = schedulers.TravaccaEtAl2017LocalScheduler(
                 self.house, self.globalscheduler, data_generator)
@@ -57,14 +65,33 @@ class TestRunOptimTravaccaEtAl2017LocalScheduler(unittest.TestCase):
             self.localscheduler.local_solve((mu, nu, day))[0].shape, (2 * HOURS_PER_DAY,))
 
 
+
+""" Global Scheduler Tests """
+
 class TestConstructionGlobalScheduler(unittest.TestCase):
     def setUp(self):
         pass
 
 
+class TestTravaccaEtAl2017AggGlobalScheduler(unittest.TestCase):
+    def setUp(self):
+        self.number_local_buildings = 10
+        self.data_generator = datagenerators.TravaccaEtAl2017AggDataGenerator(self.number_local_buildings)
+        self.globalscheduler = schedulers.TravaccaEtAl2017AggGlobalScheduler(self.number_local_buildings, self.data_generator)
+        self.data_generator = self.globalscheduler.get_data_generator()
+        self.globalscheduler.global_solver()
+
+    def test_global_solver(self):
+        self.assertAlmostEqual(self.globalscheduler.final_cost, 12, places=0)
+
+    def test_get_result(self):
+        self.assertEqual(self.globalscheduler.get_result()[1].shape, (self.number_local_buildings, HOURS_PER_DAY))
+
+
 class TestLoadDataTravaccaEtAl2017GlobalScheduler(unittest.TestCase):
     def setUp(self):
-        self.globalscheduler = schedulers.TravaccaEtAl2017GlobalScheduler()
+        self.data_generator = datagenerators.TravaccaEtAl2017DataGenerator()
+        self.globalscheduler = schedulers.TravaccaEtAl2017GlobalScheduler(self.data_generator)
 
     def test_create_c(self):
         self.assertEqual(self.globalscheduler.c.shape, (4 * HOURS_PER_DAY, 1))
@@ -75,10 +102,11 @@ class TestLoadDataTravaccaEtAl2017GlobalScheduler(unittest.TestCase):
 
 class TestRunGradientAscentTravaccaEtAl2017GlobaScheduler(unittest.TestCase):
     def setUp(self):
-        self.globalscheduler = schedulers.TravaccaEtAl2017GlobalScheduler()
-        self.data_generator = self.globalscheduler.get_data_generator()
+        self.number_localschedulers = 10
+        self.data_generator = datagenerators.TravaccaEtAl2017DataGenerator()
+        self.globalscheduler = schedulers.TravaccaEtAl2017GlobalScheduler(self.data_generator)
         self.list_localschedulers = []
-        for i in range(10):
+        for i in range(self.number_localschedulers):
             group_id = i
             house = agentgroups.AgentGroup(group_id)
             localscheduler = schedulers.TravaccaEtAl2017LocalScheduler(house, self.globalscheduler, self.data_generator)

@@ -2,7 +2,7 @@
 
 import numpy as np
 import scipy.linalg
-
+import sqlite3
 
 PV_GEN_COLUMN = 16
 HOURS_PER_DAY = 24
@@ -15,6 +15,7 @@ class DataGenerator():
 
 
 # TODO(Mathilde): initialize the random seed ?
+DATA_PATH = '/Users/mathildebadoual/code/ecoblock_test/data/database.sqlite'
 
 
 class TravaccaEtAl2017DataGenerator(DataGenerator):
@@ -215,6 +216,57 @@ class TravaccaEtAl2017AggDataGenerator(DataGenerator):
         self.grid_load_max = 10
 
 
+# This Data Generator correspond what is needed by the module system
+# It could be use later to design the parent DataGenerator
+# and redesign the other Data Generator.
+
+
+class ModelDataGenerator(DataGenerator):
+    def __init__(self):
+        super().__init__()
+        self.sim_id = 1
+        self.sim_number = 1
+
+    def set_time_step(self, time_step):
+        self.time_step = time_step
+
+    def set_simulation_time(self, time_simulation, start_date=0, end_date=0):
+        self.time_simulation- time_simulation
+        if start_date != 0:
+            self.start_date = start_date
+            self.end_date = end_date
+            self.time_simulation = end_date - start_date
+
+    def create_data(self):
+        #interpolate depending on the time step given
+        passl
+
+    def import_load_demand(self):
+        conn = sqlite3.connect(DATA_PATH)
+        cur = conn.cursor()
+        sql_script = ('SELECT demand FROM results WHERE simulation_id = ? AND simulation_num = ?')
+        cur.execute(sql_script, (str(self.sim_id), str(self.sim_number)))
+        load_demand = cur.fetchall()
+        conn.close()
+        return np.array(load_demand)
+
+    def import_ev_demand(self):
+        conn = sqlite3.connect(DATA_PATH)
+        cur = conn.cursor()
+        sql_script = ('SELECT ev_demand FROM results WHERE simulation_id = ? AND simulation_num = ?')
+        cur.execute(sql_script, (str(self.sim_id), str(self.sim_number)))
+        ev_demand = cur.fetchall()
+        conn.close()
+        return np.array(ev_demand)
+
+    def import_pv_generation(self):
+        conn = sqlite3.connect(DATA_PATH)
+        cur = conn.cursor()
+        sql_script = ('SELECT pv_generation FROM results WHERE simulation_id = ? AND simulation_num = ?')
+        cur.execute(sql_script, (str(self.sim_id), str(self.sim_number)))
+        pv_generation = cur.fetchall()
+        conn.close()
+        return np.array(pv_generation)
 
 
 

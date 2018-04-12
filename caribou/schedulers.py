@@ -230,7 +230,7 @@ class TravaccaEtAl2017AggGlobalScheduler(GlobalScheduler):
         for i in range(self.number_local_buildings):
             #constraints += [e_min[i, :].T - epsilon <= matrix_a * ev_load[i, :].T,
             #        matrix_a * ev_load[i, :].T <= e_max[i, :].T + epsilon]
-            constraints += [ev_min[i, :].T - epsilon <= ev_load[i, :].T ,
+            constraints += [ev_min[i, :].T - epsilon <= ev_load[i, :].T,
                     ev_load[i, :].T <= ev_max[i, :].T + epsilon]
 
         constraints += [e_min_agg.T <= matrix_a * cvxpy.sum_entries(ev_load, axis=0).T ,
